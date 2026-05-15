@@ -237,7 +237,7 @@ input[type=range]::-webkit-slider-thumb{
 </div>
 
 <script>
-let ws, myName="", playing=false, speed=45, scrollPx=0, activeBlock=0;
+let ws, myName="", myClientId=null, playing=false, speed=45, scrollPx=0, activeBlock=0;
 let COLORS=[
   {bg:"#FFB3B3"},{bg:"#FFD4A0"},{bg:"#FFF4A0"},{bg:"#AEFFCC"},
   {bg:"#A0DEFF"},{bg:"#A0AAFF"},{bg:"#CCA0FF"},{bg:"#FFB3E8"},
@@ -291,6 +291,7 @@ function connectWS(){
     const msg=JSON.parse(data);
     switch(msg.type){
       case "init":
+        myClientId=msg.clientId;
         if(msg.colors) COLORS=msg.colors;
         speed=msg.playhead?.speed||45;
         playing=msg.playhead?.playing||false;
@@ -307,8 +308,24 @@ function connectWS(){
       case "sync_scroll": scrollPx=msg.px; updateThumb(); break;
       case "jump_block":  activeBlock=msg.index; renderBlockChips(); break;
       case "reload":      setTimeout(() => location.reload(), 3000); break;
+      case "client_cmd":
+        if(msg.cmd==="reload") setTimeout(()=>location.reload(),500);
+        if(msg.cmd==="beep")   playRemoteBeep();
+        break;
     }
   };
+}
+
+function playRemoteBeep(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator(), gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value=660; osc.type='sine';
+    gain.gain.setValueAtTime(0.2,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.35);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.35);
+  }catch(e){}
 }
 
 function send(obj){ ws?.readyState===1&&ws.send(JSON.stringify(obj)); }

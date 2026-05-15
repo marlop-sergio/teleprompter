@@ -23,6 +23,7 @@
 
 html,body{height:100%;background:var(--bg);color:var(--white);
   font-family:'DM Sans','DM Sans fallback',system-ui,sans-serif;overflow:hidden}
+body{transform-origin:center center;transition:transform .5s cubic-bezier(.4,0,.2,1)}
 
 /* ── HUD ── */
 #hud{
@@ -212,6 +213,7 @@ function esc(s){ const d=document.createElement("div"); d.textContent=s; return 
 
 let COLORS=[], script=null, playing=false, speed=45, fontSize=56, speakerSize=22, noteSize=42;
 let stopAtBlockEnd=false, _stoppedBlocks=new Set();
+let myClientId=null, _rotDeg=0, _flipH=false, _flipV=false;
 let scrollPx=0, rafId=null, lastTs=null;
 let clockItems=["clock"], clockVisible=false, chronoStart=null, chronoElapsed=0, timerStart=null, timerElapsed=0, timerSec=600;
 
@@ -237,6 +239,7 @@ function connectWS(){
   const msg = JSON.parse(data);
   switch(msg.type){
     case "init":
+      myClientId = msg.clientId;
       COLORS = msg.colors;
       if(msg.script) loadScript(msg.script);
       applyPlayhead(msg.playhead);
@@ -277,10 +280,49 @@ function connectWS(){
     case "reload":
       setTimeout(() => location.reload(), 3000);
       break;
+    case "client_cmd":
+      switch(msg.cmd){
+        case "reload":  setTimeout(()=>location.reload(), 500); break;
+        case "flip_h":  _flipH=!_flipH;  applyDisplayTransform(); break;
+        case "flip_v":  _flipV=!_flipV;  applyDisplayTransform(); break;
+        case "rotate":  _rotDeg=(_rotDeg+90)%360; applyDisplayTransform(); break;
+        case "beep":    playBeep(); break;
+      }
+      break;
   }
   };
 }
 connectWS();
+
+function applyDisplayTransform(){
+  const parts=[];
+  if(_rotDeg) parts.push(`rotate(${_rotDeg}deg)`);
+  if(_flipH)  parts.push(`scaleX(-1)`);
+  if(_flipV)  parts.push(`scaleY(-1)`);
+  document.body.style.transform = parts.join(' ');
+}
+
+function playBeep(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator(), gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value=880; osc.type='sine';
+    gain.gain.setValueAtTime(0.25,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.4);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.4);
+    flashBorder();
+  }catch(e){}
+}
+
+function flashBorder(){
+  document.body.style.transition='box-shadow .05s';
+  document.body.style.boxShadow='inset 0 0 0 6px #fff';
+  setTimeout(()=>{
+    document.body.style.boxShadow='inset 0 0 0 6px transparent';
+    document.body.style.transition='box-shadow .4s ease-out,transform .5s cubic-bezier(.4,0,.2,1)';
+  },120);
+}
 
 // ── Render ─────────────────────────────────────────────────────────────────
 function loadScript(sc){

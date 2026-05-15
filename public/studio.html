@@ -36,7 +36,30 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .client-pill{
   padding:3px 9px;border-radius:12px;font-size:10px;font-weight:600;
   letter-spacing:.06em;text-transform:uppercase;background:var(--s2);color:var(--text2);
+  display:flex;align-items:center;gap:5px;position:relative;
 }
+.client-pill.has-menu{cursor:pointer;user-select:none}
+.client-pill.has-menu:hover{background:var(--s3);color:var(--text)}
+.cpill-chevron{font-size:8px;opacity:.5}
+.client-pill.has-menu:hover .cpill-chevron{opacity:1}
+/* ── Client dropdown menu ── */
+#client-menu{
+  position:fixed;z-index:600;background:var(--s2);border:1px solid var(--border2);
+  border-radius:10px;padding:4px;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.4);
+  display:none;flex-direction:column;gap:1px;
+}
+#client-menu.open{display:flex}
+.cmenu-header{
+  font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text2);padding:6px 10px 4px;
+}
+.cmenu-item{
+  display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;
+  font-size:12px;color:var(--text);cursor:pointer;background:none;border:none;
+  width:100%;text-align:left;
+}
+.cmenu-item:hover{background:var(--s3)}
+.cmenu-sep{height:1px;background:var(--border);margin:3px 6px}
 
 /* ── Layout ── */
 #workspace{
@@ -771,6 +794,9 @@ input[type=range]::-moz-range-thumb{
 
   </div>
 </div>
+
+<!-- Client command menu -->
+<div id="client-menu"></div>
 
 <!-- Color picker -->
 <div id="color-picker"></div>
@@ -2102,12 +2128,67 @@ function stopVoice() {
 // ══════════════════════════════════════════════════════
 // CLIENTS
 // ══════════════════════════════════════════════════════
+const _clientMenuState = new Map(); // clientId → {rotDeg:0, flipH:false, flipV:false}
+let _clientMenuTarget = null;
+
 function renderClients(list) {
   const el = document.getElementById("clients-bar");
   const icons = { teleprompter:"📺", studio:"🎛️", remote:"📱" };
-  el.innerHTML = (list||[]).map(c =>
-    `<span class="client-pill" title="${esc(c.ip||c.role)}">${icons[c.role]||"•"} ${esc(c.name||c.role)}</span>`
-  ).join("");
+  el.innerHTML = (list||[]).map(c => {
+    const hasMenu = c.clientId && (c.role === "teleprompter" || c.role === "remote");
+    if (hasMenu) {
+      return `<span class="client-pill has-menu" title="${esc(c.ip||c.role)}"
+        onclick="openClientMenu('${c.clientId}','${c.role}',this,event)">
+        ${icons[c.role]||"•"} ${esc(c.name||c.role)} <span class="cpill-chevron">▾</span>
+      </span>`;
+    }
+    return `<span class="client-pill" title="${esc(c.ip||c.role)}">${icons[c.role]||"•"} ${esc(c.name||c.role)}</span>`;
+  }).join("");
+}
+
+function openClientMenu(clientId, role, pill, e) {
+  e.stopPropagation();
+  const menu = document.getElementById("client-menu");
+  if (_clientMenuTarget === clientId && menu.classList.contains("open")) {
+    closeClientMenu(); return;
+  }
+  _clientMenuTarget = clientId;
+  if (!_clientMenuState.has(clientId)) _clientMenuState.set(clientId, {rotDeg:0, flipH:false, flipV:false});
+  const st = _clientMenuState.get(clientId);
+
+  const isTp = role === "teleprompter";
+  menu.innerHTML = `
+    <div class="cmenu-header">${role === "teleprompter" ? "📺 Teleprónter" : "📱 Mando"}</div>
+    <button class="cmenu-item" onclick="clientCmd('${clientId}','reload')">↺ &nbsp;Recargar página</button>
+    <button class="cmenu-item" onclick="clientCmd('${clientId}','beep')">🔔 &nbsp;Pitido</button>
+    ${isTp ? `<div class="cmenu-sep"></div>
+    <button class="cmenu-item" onclick="clientCmd('${clientId}','flip_h')">↔ &nbsp;Voltear horizontal ${st.flipH?"✓":""}</button>
+    <button class="cmenu-item" onclick="clientCmd('${clientId}','flip_v')">↕ &nbsp;Voltear vertical ${st.flipV?"✓":""}</button>
+    <button class="cmenu-item" onclick="clientCmd('${clientId}','rotate')">↻ &nbsp;Rotar 90° <span style="color:var(--text2);font-size:10px">(ahora ${st.rotDeg}°)</span></button>` : ""}
+  `;
+  const rect = pill.getBoundingClientRect();
+  menu.style.top  = (rect.bottom + 6) + "px";
+  menu.style.left = rect.left + "px";
+  menu.classList.add("open");
+
+  setTimeout(() => document.addEventListener("mousedown", closeClientMenuOutside, {once:true}), 0);
+}
+
+function closeClientMenuOutside(e) {
+  if (!document.getElementById("client-menu").contains(e.target)) closeClientMenu();
+}
+function closeClientMenu() {
+  document.getElementById("client-menu").classList.remove("open");
+  _clientMenuTarget = null;
+}
+
+function clientCmd(clientId, cmd) {
+  const st = _clientMenuState.get(clientId) || {rotDeg:0, flipH:false, flipV:false};
+  if (cmd === "flip_h")  { st.flipH = !st.flipH; _clientMenuState.set(clientId, st); }
+  if (cmd === "flip_v")  { st.flipV = !st.flipV; _clientMenuState.set(clientId, st); }
+  if (cmd === "rotate")  { st.rotDeg = (st.rotDeg + 90) % 360; _clientMenuState.set(clientId, st); }
+  send({ type:"client_cmd", clientId, cmd });
+  closeClientMenu();
 }
 
 // ══════════════════════════════════════════════════════

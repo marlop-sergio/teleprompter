@@ -7,6 +7,7 @@ const https  = require("https");
 const fs     = require("fs");
 const path   = require("path");
 const { exec } = require("child_process");
+const { randomUUID } = require("crypto");
 const { WebSocketServer } = require("ws");
 const os     = require("os");
 const QRCode = require("qrcode");
@@ -262,11 +263,13 @@ function broadcastAll(obj, exclude = null) {
 wss.on("connection", (ws, req) => {
   const rawIp = req.socket.remoteAddress || "";
   const ip = rawIp.replace(/^::ffff:/, "").replace("::1", "localhost");
-  state.clients.set(ws, { role: "unknown", id: null, name: null, ip });
+  const clientId = randomUUID();
+  state.clients.set(ws, { role: "unknown", clientId, id: null, name: null, ip });
 
   // Enviar estado inicial
   send(ws, {
     type: "init",
+    clientId,
     colors: PASTEL_COLORS,
     scripts: listScripts(),
     activeScriptId: state.activeScriptId,
@@ -292,7 +295,7 @@ wss.on("connection", (ws, req) => {
 function getClientList() {
   const list = [];
   for (const [, info] of state.clients) {
-    if (info.role !== "unknown") list.push({ role: info.role, name: info.name, ip: info.ip });
+    if (info.role !== "unknown") list.push({ role: info.role, name: info.name, ip: info.ip, clientId: info.clientId });
   }
   return list;
 }
@@ -307,6 +310,17 @@ function handleMessage(ws, msg) {
       info.role = msg.role; // "teleprompter" | "studio" | "remote"
       info.name = msg.name || msg.role;
       broadcastAll({ type: "clients_updated", clients: getClientList() });
+      break;
+    }
+
+    // ── Comandos dirigidos a un cliente concreto ──────────────────────────────
+    case "client_cmd": {
+      for (const [targetWs, targetInfo] of state.clients) {
+        if (targetInfo.clientId === msg.clientId) {
+          send(targetWs, { type: "client_cmd", cmd: msg.cmd, data: msg.data ?? null });
+          break;
+        }
+      }
       break;
     }
 
