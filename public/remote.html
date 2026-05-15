@@ -253,8 +253,10 @@ input[type=range]::-webkit-slider-thumb{
 <canvas id="photo-canvas" style="display:none"></canvas>
 
 <div id="toast"></div>
-<div style="position:fixed;bottom:8px;right:12px;font-size:10px;letter-spacing:.05em;color:var(--text2);opacity:.6;pointer-events:none">
-  Powered by meettheexpert.tech
+<div style="position:fixed;bottom:8px;left:0;right:0;padding:0 12px;display:flex;justify-content:space-between;
+            font-size:10px;letter-spacing:.05em;color:var(--text2);opacity:.6;pointer-events:none">
+  <span>Powered by meettheexpert.tech</span>
+  <span id="footer-version"></span>
 </div>
 
 <script>
@@ -468,6 +470,11 @@ function toast(msg){
   clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove("show"),2200);
 }
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+fetch("/api/network").then(r=>r.json()).then(d=>{
+  const el=document.getElementById("footer-version");
+  if(el && d.version) el.textContent="v"+d.version;
+}).catch(()=>{});
 
 // ── Fotos de locutores ─────────────────────────────────────────────────────
 function renderPhotoSection(script){
