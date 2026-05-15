@@ -600,9 +600,12 @@ function tick(ts){
       const lastLine = lines[lines.length-1];
       if(lastLine && lastLine.getBoundingClientRect().bottom < focusY){
         _stoppedBlocks.add(bi);
-        playing=false; stopScroll();
-        ws?.readyState===1 && ws.send(JSON.stringify({type:"pause"}));
-        return;
+        // Durante un salto manual (smoothRaf = nudge) solo marcar, no pausar
+        if(!_smoothRaf){
+          playing=false; stopScroll();
+          ws?.readyState===1 && ws.send(JSON.stringify({type:"pause"}));
+          return;
+        }
       }
     }
   } else {
