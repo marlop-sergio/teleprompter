@@ -1168,12 +1168,15 @@ function openColorPicker(evt, participantIdx) {
   };
   delBtn.style.display = hasPhoto ? "block" : "none";
   const rect = evt.target.getBoundingClientRect();
-  const pickerH = 96; // altura aproximada del picker (2 filas de swatches)
+  // Medir altura real del picker (incluye botones de foto si están visibles)
+  el.style.top = "-9999px"; el.style.visibility = "hidden";
+  const pickerH = el.getBoundingClientRect().height || 120;
+  el.style.visibility = "";
   const spaceBelow = window.innerHeight - rect.bottom;
   if (spaceBelow < pickerH + 12) {
-    el.style.top  = (rect.top - pickerH - 6) + "px";
+    el.style.top = (rect.top - pickerH - 6) + "px";
   } else {
-    el.style.top  = (rect.bottom + 6) + "px";
+    el.style.top = (rect.bottom + 6) + "px";
   }
   // Evitar que se salga por la derecha
   const left = Math.min(rect.left, window.innerWidth - 216);
