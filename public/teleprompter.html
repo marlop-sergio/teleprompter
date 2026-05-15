@@ -193,6 +193,10 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 <div id="fade-top"></div>
 <div id="fade-bottom"></div>
 <div id="focus-line"></div>
+<div id="key-debug" style="display:none;position:fixed;bottom:60px;right:18px;z-index:900;
+  background:rgba(0,0,0,.8);border:1px solid rgba(255,255,255,.2);border-radius:10px;
+  padding:10px 16px;font-size:12px;font-family:monospace;color:#fff;min-width:200px;
+  pointer-events:none"></div>
 <div id="scroller"><div id="content"></div></div>
 
 <div id="empty">
@@ -704,6 +708,60 @@ setInterval(()=>{
     }
   }
 },500);
+
+// ── Detector de mando / teclado ───────────────────────────────────────────────
+let _keyDebugTimer = null;
+const _keyDbg = document.getElementById("key-debug");
+
+function showKeyDebug(lines) {
+  _keyDbg.style.display = "block";
+  _keyDbg.innerHTML = lines.join("<br>");
+  clearTimeout(_keyDebugTimer);
+  _keyDebugTimer = setTimeout(() => { _keyDbg.style.display = "none"; }, 4000);
+}
+
+// Teclado (HID keyboard mode)
+window.addEventListener("keydown", e => {
+  const info = [
+    `<b>KEY</b>`,
+    `key: <span style="color:#7cf">${e.key}</span>`,
+    `code: <span style="color:#fc7">${e.code}</span>`,
+    `keyCode: ${e.keyCode}`,
+  ];
+  console.log("[KeyDebug]", { key: e.key, code: e.code, keyCode: e.keyCode });
+  showKeyDebug(info);
+});
+
+// Gamepad API (para mandos que NO se presentan como teclado)
+window.addEventListener("gamepadconnected", e => {
+  console.log("[Gamepad]", e.gamepad.id, `${e.gamepad.buttons.length} botones, ${e.gamepad.axes.length} ejes`);
+  showKeyDebug([`<b>GAMEPAD</b> conectado`, e.gamepad.id, `${e.gamepad.buttons.length} botones`]);
+});
+
+let _gpPrev = {};
+setInterval(() => {
+  const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const gp of gamepads) {
+    if (!gp) continue;
+    gp.buttons.forEach((btn, i) => {
+      const pressed = btn.pressed;
+      if (pressed && !_gpPrev[`${gp.index}_b${i}`]) {
+        const info = [`<b>GAMEPAD</b>`, `Botón: <span style="color:#7cf">${i}</span>`, `value: ${btn.value.toFixed(2)}`];
+        console.log("[GamepadBtn]", { gamepad: gp.id, button: i, value: btn.value });
+        showKeyDebug(info);
+      }
+      _gpPrev[`${gp.index}_b${i}`] = pressed;
+    });
+    gp.axes.forEach((val, i) => {
+      if (Math.abs(val) > 0.5 && !_gpPrev[`${gp.index}_a${i}`]) {
+        const info = [`<b>GAMEPAD EJE</b>`, `Eje: <span style="color:#fc7">${i}</span>`, `value: ${val.toFixed(2)}`];
+        console.log("[GamepadAxis]", { gamepad: gp.id, axis: i, value: val });
+        showKeyDebug(info);
+      }
+      _gpPrev[`${gp.index}_a${i}`] = Math.abs(val) > 0.5;
+    });
+  }
+}, 100);
 </script>
 </body>
 </html>
