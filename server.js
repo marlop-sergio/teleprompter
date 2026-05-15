@@ -525,9 +525,16 @@ function handleMessage(ws, msg) {
 function clamp(v, min, max) { return Math.min(Math.max(Number(v) || 0, min), max); }
 
 // ── Git pull silencioso al arrancar ───────────────────────────────────────────
+// Si hay cambios, el proceso se termina para que pm2 relance con el código nuevo
 try {
-  require("child_process").execSync("git pull origin main", { cwd: __dirname, timeout: 15000 });
-  console.log("✓ git pull completado");
+  const pullOut = require("child_process")
+    .execSync("git pull origin main", { cwd: __dirname, timeout: 15000 })
+    .toString().trim();
+  console.log("✓ git pull:", pullOut);
+  if (pullOut && !/already up.to.date|ya está actualizado/i.test(pullOut)) {
+    console.log("🔄 Código actualizado — relanzando con nuevo código…");
+    process.exit(0); // pm2 relanza automáticamente con el código nuevo en disco
+  }
 } catch { console.log("⚠ git pull omitido (sin internet o sin cambios)"); }
 
 // ── Autocarga del último guión ────────────────────────────────────────────────
