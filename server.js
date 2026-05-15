@@ -354,6 +354,11 @@ function handleMessage(ws, msg) {
       break;
 
     case "save_script": {
+      // Preservar fotos del estado del servidor antes de guardar a disco
+      (msg.script.participants || []).forEach(p => {
+        if (state.participantPhotos[p.id]) p.photo = state.participantPhotos[p.id];
+        else delete p.photo;
+      });
       const id = saveScript(msg.script);
       broadcastAll({ type: "scripts_list", scripts: listScripts() });
       send(ws, { type: "script_saved", id });

@@ -136,10 +136,11 @@ select option{background:var(--s2)}
   padding:10px 14px;border-bottom:1px solid var(--border);
 }
 .p-color-swatch{
-  width:28px;height:28px;border-radius:50%;flex-shrink:0;cursor:pointer;
-  border:2px solid transparent;transition:transform .15s;position:relative;
+  width:36px;height:36px;border-radius:50%;flex-shrink:0;cursor:pointer;
+  border:3px solid transparent;transition:transform .15s;position:relative;
 }
 .p-color-swatch:hover{transform:scale(1.1)}
+.p-color-swatch.has-photo{background-size:cover;background-position:center}
 .p-name-input{flex:1;font-size:13px}
 .p-name-input input{padding:6px 9px;font-size:13px}
 
@@ -1076,11 +1077,11 @@ function renderParticipants() {
     const color = COLORS[p.colorIdx ?? i] || COLORS[0];
     const photo = participantPhotos[p.id];
     const swatchStyle = photo
-      ? `background:${color.bg};background-image:url('${photo}');background-size:cover;background-position:center`
+      ? `background-image:url('${photo}');background-size:cover;background-position:center;border-color:${color.bg}`
       : `background:${color.bg}`;
     return `
       <div class="participant-row">
-        <div class="p-color-swatch"
+        <div class="p-color-swatch${photo?" has-photo":""}"
              style="${swatchStyle}"
              onclick="openColorPicker(event,${i})"
              title="Cambiar color">
