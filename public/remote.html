@@ -16,6 +16,8 @@
   --accent:#7c9fff;--green:#5eead4;--red:#fb7185;
 }
 html{height:100%;/* No touch-action here - handled per-element */}
+@keyframes reconnect-pulse{0%,100%{background:var(--bg)}50%{background:#2a0808}}
+body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 body{
   min-height:100%;background:var(--bg);color:var(--text);
   font-family:'Figtree','Figtree fallback',system-ui,sans-serif;
@@ -303,12 +305,14 @@ function connectWS(){
   ws.onopen=()=>{
     document.getElementById("ws-dot").classList.add("live");
     document.getElementById("ws-label").textContent="Conectado";
+    document.body.classList.remove("reconnecting");
     ws.send(JSON.stringify({type:"register",role:"remote",name:myName}));
     showControls();
   };
   ws.onclose=()=>{
     document.getElementById("ws-dot").classList.remove("live");
     document.getElementById("ws-label").textContent="Reconectando…";
+    document.body.classList.add("reconnecting");
     setTimeout(connectWS,2000);
   };
   ws.onmessage=({data})=>{

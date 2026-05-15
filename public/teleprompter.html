@@ -24,6 +24,8 @@
 html,body{height:100%;background:var(--bg);color:var(--white);
   font-family:'DM Sans','DM Sans fallback',system-ui,sans-serif;overflow:hidden}
 body{transform-origin:center center;transition:transform .5s cubic-bezier(.4,0,.2,1)}
+@keyframes reconnect-pulse{0%,100%{background:var(--bg)}50%{background:#3a0a0a}}
+body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 
 /* ── HUD ── */
 #hud{
@@ -233,10 +235,12 @@ function connectWS(){
   ws = new WebSocket(`${location.protocol==="https:"?"wss:":"ws:"}//${location.host}`);
   ws.onopen = () => {
     document.getElementById("ws-dot").classList.add("live");
+    document.body.classList.remove("reconnecting");
     ws.send(JSON.stringify({type:"register",role:"teleprompter",name:"Teleprónter"}));
   };
   ws.onclose = () => {
     document.getElementById("ws-dot").classList.remove("live");
+    document.body.classList.add("reconnecting");
     setTimeout(connectWS, 2000);
   };
   ws.onmessage = ({data}) => {
