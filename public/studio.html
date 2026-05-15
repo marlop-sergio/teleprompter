@@ -972,6 +972,7 @@ function connectWS() {
 
     case "script_saved":
       activeScriptId = msg.id;
+      if (script) script.id = msg.id;  // sincronizar ID local con el del servidor
       dirty = false;
       hideSaveBar();
       toast("Guión guardado ✓");
