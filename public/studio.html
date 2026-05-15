@@ -136,7 +136,7 @@ select option{background:var(--s2)}
   padding:10px 14px;border-bottom:1px solid var(--border);
 }
 .p-color-swatch{
-  width:36px;height:36px;border-radius:50%;flex-shrink:0;cursor:pointer;
+  width:48px;height:48px;border-radius:50%;flex-shrink:0;cursor:pointer;
   border:3px solid transparent;transition:transform .15s;position:relative;
 }
 .p-color-swatch:hover{transform:scale(1.1)}
@@ -198,8 +198,8 @@ select option{background:var(--s2)}
 }
 .line-editor:hover{border-color:var(--border)}
 .line-speaker-dot{
-  width:20px;height:20px;border-radius:50%;flex-shrink:0;margin-top:8px;
-  cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s;flex-shrink:0;
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;margin-top:6px;
+  cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s;
 }
 .line-speaker-dot:hover{transform:scale(1.2);border-color:rgba(255,255,255,.3)}
 .line-textarea{
@@ -1272,7 +1272,7 @@ function renderSpeakerPills() {
     const active = activeSpeakerIdx === i;
     const photo = participantPhotos[p.id];
     const avatar = photo
-      ? `<img src="${photo}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+      ? `<img src="${photo}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0">`
       : `<span style="width:10px;height:10px;border-radius:50%;background:${color.bg};flex-shrink:0;display:inline-block"></span>`;
     return `<div class="sp-pill ${active?"active":""}"
                  style="background:${color.bg}${active?"28":"14"};color:${color.bg};border-color:${active?color.bg:"transparent"};display:flex;align-items:center;gap:5px"
