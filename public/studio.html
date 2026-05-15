@@ -361,6 +361,10 @@ input[type=range]::-moz-range-thumb{
 /* ── Drag & drop indicators ── */
 .line-editor.drag-over-top{border-top:2px solid var(--accent) !important;border-radius:8px 8px 0 0}
 .line-editor.drag-over-bottom{border-bottom:2px solid var(--accent) !important;border-radius:0 0 8px 8px}
+.block-drop-zone{min-height:48px;margin:8px;border:2px dashed rgba(255,255,255,.12);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.2);font-size:12px;
+  transition:border-color .15s,color .15s}
+.block-drop-zone.drag-over{border-color:var(--accent);color:var(--accent);background:rgba(124,159,255,.06)}
 
 /* ── Active block highlight ── */
 .block-editor.block-active{border-color:rgba(124,159,255,.4);box-shadow:0 0 0 1px rgba(124,159,255,.15)}
@@ -1165,6 +1169,7 @@ function updateActiveBlock(idx) {
 function renderBlockHTML(block, bi) {
   const lines = (block.lines || []).map((line, li) => renderLineHTML(line, bi, li)).join("");
   const isActive = bi === activeBlockIdx;
+  const inner = lines || `<div class="block-drop-zone" data-block="${bi}">Arrastra una línea aquí</div>`;
   return `
     <div class="block-editor ${isActive?"block-active":""}" data-block="${bi}">
       <div class="block-head">
@@ -1178,7 +1183,7 @@ function renderBlockHTML(block, bi) {
         <button class="btn btn-ghost btn-sm btn-icon" onclick="duplicateBlock(${bi})" title="Duplicar bloque">⧉</button>
         <button class="btn btn-red btn-sm btn-icon" onclick="removeBlock(${bi})" title="Eliminar bloque">🗑</button>
       </div>
-      <div class="block-lines" id="block-lines-${bi}">${lines}</div>
+      <div class="block-lines" id="block-lines-${bi}">${inner}</div>
     </div>`;
 }
 
@@ -1375,6 +1380,11 @@ function attachDragListeners() {
     el.addEventListener("drop",      onLineDrop);
     el.addEventListener("dragend",   onLineDragEnd);
   });
+  document.querySelectorAll(".block-drop-zone").forEach(el => {
+    el.addEventListener("dragover",  onDropZoneDragOver);
+    el.addEventListener("dragleave", onDropZoneDragLeave);
+    el.addEventListener("drop",      onDropZoneDrop);
+  });
 }
 
 function onLineDragStart(e) {
@@ -1405,24 +1415,26 @@ function onLineDrop(e) {
   document.querySelectorAll(".line-editor").forEach(el =>
     el.classList.remove("drag-over-top", "drag-over-bottom"));
   if (!dragState) return;
-  const lineEl  = e.currentTarget;
-  const blockEl = lineEl.closest(".block-editor");
+  const lineEl   = e.currentTarget;
+  const blockEl  = lineEl.closest(".block-editor");
   const targetBi = parseInt(blockEl.dataset.block);
   const targetLi = parseInt(lineEl.dataset.line);
-  if (dragState.bi !== targetBi) { dragState = null; return; }
-  const after = e.clientY >= lineEl.getBoundingClientRect().top + lineEl.getBoundingClientRect().height / 2;
-  const { bi, li: srcLi } = dragState;
+  const after    = e.clientY >= lineEl.getBoundingClientRect().top + lineEl.getBoundingClientRect().height / 2;
+  const { bi: srcBi, li: srcLi } = dragState;
   dragState = null;
-  if (srcLi === targetLi) return;
+  if (srcBi === targetBi && srcLi === targetLi) return;
   snapshot();
-  const lines = script.blocks[bi].lines;
-  const [moved] = lines.splice(srcLi, 1);
-  let dest = after ? targetLi : targetLi;
-  if (after && targetLi >= srcLi) dest = targetLi;
-  else if (!after && targetLi > srcLi) dest = targetLi - 1;
-  else if (!after && targetLi <= srcLi) dest = targetLi;
-  else dest = targetLi - 1;
-  lines.splice(dest, 0, moved);
+  if (srcBi === targetBi) {
+    const lines = script.blocks[srcBi].lines;
+    const [moved] = lines.splice(srcLi, 1);
+    let dest;
+    if (after) dest = targetLi < srcLi ? targetLi + 1 : targetLi;
+    else       dest = targetLi > srcLi ? targetLi - 1 : targetLi;
+    lines.splice(dest, 0, moved);
+  } else {
+    const [moved] = script.blocks[srcBi].lines.splice(srcLi, 1);
+    script.blocks[targetBi].lines.splice(after ? targetLi + 1 : targetLi, 0, moved);
+  }
   renderBlocks();
   markDirty();
 }
@@ -1432,6 +1444,30 @@ function onLineDragEnd(e) {
   dragState = null;
   document.querySelectorAll(".line-editor").forEach(el =>
     el.classList.remove("drag-over-top", "drag-over-bottom"));
+}
+
+function onDropZoneDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  e.currentTarget.classList.add("drag-over");
+}
+
+function onDropZoneDragLeave(e) {
+  e.currentTarget.classList.remove("drag-over");
+}
+
+function onDropZoneDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove("drag-over");
+  if (!dragState) return;
+  const { bi: srcBi, li: srcLi } = dragState;
+  const targetBi = parseInt(e.currentTarget.dataset.block);
+  dragState = null;
+  snapshot();
+  const [moved] = script.blocks[srcBi].lines.splice(srcLi, 1);
+  script.blocks[targetBi].lines.push(moved);
+  renderBlocks();
+  markDirty();
 }
 
 // ── Emoji picker ─────────────────────────────────────────────────────────────
