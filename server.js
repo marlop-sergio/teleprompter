@@ -1,3 +1,7 @@
+// Teleprónter PRO — Copyright (C) 2025 Sergio Marlop
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// https://github.com/marlop-sergio/teleprompter
+
 const http   = require("http");
 const fs     = require("fs");
 const path   = require("path");
