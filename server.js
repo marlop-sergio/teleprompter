@@ -165,7 +165,7 @@ const server = http.createServer((req, res) => {
 
   // ── Update via git pull ──────────────────────────────────────────────────
   if (urlPath === "/api/update") {
-    exec("git pull", { cwd: __dirname }, (err, stdout, stderr) => {
+    exec("git pull origin main", { cwd: __dirname }, (err, stdout, stderr) => {
       const out = (stdout + stderr).trim();
       const upToDate = /already up.to.date|ya está actualizado/i.test(out);
       const needsDeps = !upToDate && /package\.json|pnpm-lock/i.test(out);
