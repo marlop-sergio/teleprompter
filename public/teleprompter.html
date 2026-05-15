@@ -211,6 +211,7 @@ html,body{height:100%;background:var(--bg);color:var(--white);
 function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 
 let COLORS=[], script=null, playing=false, speed=45, fontSize=56, speakerSize=22, noteSize=42;
+let stopAtBlockEnd=false, _stoppedBlocks=new Set();
 let scrollPx=0, rafId=null, lastTs=null;
 let clockItems=["clock"], clockVisible=false, chronoStart=null, chronoElapsed=0, timerStart=null, timerElapsed=0, timerSec=600;
 
@@ -244,11 +245,11 @@ function connectWS(){
       break;
     case "script_loaded":
       msg.script ? loadScript(msg.script) : renderEmpty();
-      scrollPx=0; stopScroll(); applyScroll();
+      scrollPx=0; stopScroll(); applyScroll(); _stoppedBlocks.clear();
       break;
     case "play":        playing=true;  flash(); startScroll(); break;
     case "pause":       playing=false; stopScroll(); break;
-    case "reset":       playing=false; scrollPx=0; stopScroll(); applyScroll(); break;
+    case "reset":       playing=false; scrollPx=0; stopScroll(); applyScroll(); _stoppedBlocks.clear(); break;
     case "scroll_to":   smoothScrollTo(msg.px??scrollPx, 150); break;
     case "jump_block":  jumpToBlock(msg.index); break;
     case "set_speed":   speed=msg.value; break;
@@ -340,6 +341,7 @@ function applyConfig(cfg){
     const el=document.getElementById("hud-server-ip");
     if(el) el.style.display=cfg.showServerIP?"":"none";
   }
+  if(cfg.stopAtBlockEnd!=null) stopAtBlockEnd=cfg.stopAtBlockEnd;
 }
 
 function jumpToLine(bi, li){
@@ -454,12 +456,26 @@ function tick(ts){
   // Si hay un salto animado en curso, no avanzar el scroll automático para no pisar
   if(!_smoothRaf){ scrollPx+=speed*dt; applyScroll(); }
   updateActiveLine();
-  // Auto-stop cuando la última línea del guión completo pasa el cursor de foco
-  const allLines = contentEl.querySelectorAll(".script-line");
-  const lastLine = allLines[allLines.length - 1];
-  if(lastLine){
-    const focusY = window.innerHeight*0.5+26;
-    if(lastLine.getBoundingClientRect().bottom < focusY){
+  // Auto-stop al final de cada bloque o al final del guión completo
+  const focusY = window.innerHeight*0.5+26;
+  if(stopAtBlockEnd){
+    const blocks = contentEl.querySelectorAll(".block");
+    for(const block of blocks){
+      const bi = parseInt(block.dataset.block);
+      if(_stoppedBlocks.has(bi)) continue;
+      const lines = block.querySelectorAll(".script-line");
+      const lastLine = lines[lines.length-1];
+      if(lastLine && lastLine.getBoundingClientRect().bottom < focusY){
+        _stoppedBlocks.add(bi);
+        playing=false; stopScroll();
+        ws?.readyState===1 && ws.send(JSON.stringify({type:"pause"}));
+        return;
+      }
+    }
+  } else {
+    const allLines = contentEl.querySelectorAll(".script-line");
+    const lastLine = allLines[allLines.length-1];
+    if(lastLine && lastLine.getBoundingClientRect().bottom < focusY){
       playing=false; stopScroll();
       ws?.readyState===1 && ws.send(JSON.stringify({type:"pause"}));
       return;

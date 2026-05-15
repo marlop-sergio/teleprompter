@@ -367,8 +367,8 @@ input[type=range]::-moz-range-thumb{
 .block-drop-zone.drag-over{border-color:var(--accent);color:var(--accent);background:rgba(124,159,255,.06)}
 
 /* ── Active block highlight ── */
-.block-editor.block-active{border-color:rgba(124,159,255,.4);box-shadow:0 0 0 1px rgba(124,159,255,.15)}
-.block-editor.block-active .block-head{background:rgba(124,159,255,.06)}
+.block-editor.block-active{border-color:rgba(94,234,212,.5);box-shadow:0 0 0 1px rgba(94,234,212,.2)}
+.block-editor.block-active .block-head{background:rgba(94,234,212,.06)}
 
 /* ── Emoji picker ── */
 #emoji-picker{
@@ -508,6 +508,13 @@ input[type=range]::-moz-range-thumb{
     </div>
 
     <div id="editor-area">
+      <div style="display:flex;align-items:center;justify-content:space-between;
+                  padding:6px 4px 10px;border-bottom:1px solid var(--border);margin-bottom:12px">
+        <span style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)">
+          Detener al final de cada bloque
+        </span>
+        <button class="toggle" id="toggle-stop-block" onclick="toggleStopAtBlockEnd(this)" title="Pausar el teleprónter al llegar al final de cada bloque"></button>
+      </div>
       <div id="blocks-container"></div>
       <button id="add-block-btn" onclick="addBlock()">+ Añadir bloque</button>
     </div>
@@ -722,16 +729,14 @@ input[type=range]::-moz-range-thumb{
 
         <div class="config-row">
           <div class="config-header"><span class="config-label">Pantalla Teleprónter</span></div>
-          <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:8px;cursor:pointer">
-            <input type="checkbox" id="cfg-hide-cursor" onchange="onCfgHideCursor(this.checked)"
-                   style="accent-color:var(--accent);width:14px;height:14px">
-            Ocultar cursor del ratón
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
-            <input type="checkbox" id="cfg-show-ip" onchange="onCfgShowIP(this.checked)"
-                   style="accent-color:var(--accent);width:14px;height:14px">
-            Mostrar IP del servidor en HUD
-          </label>
+          <div class="toggle-row">
+            <span class="toggle-label">Ocultar cursor del ratón</span>
+            <button class="toggle" id="cfg-hide-cursor" onclick="onCfgHideCursor()"></button>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Mostrar IP del servidor en HUD</span>
+            <button class="toggle" id="cfg-show-ip" onclick="onCfgShowIP()"></button>
+          </div>
         </div>
 
         <!-- Guardar / restablecer -->
@@ -833,8 +838,9 @@ let activeBlockIdx = 0;
 let dirty      = false;
 let speakerSize  = 22; // percent relative to fontSize
 let contentWidth = 80;
-let hideCursor   = false;
-let showServerIP = false;
+let hideCursor     = false;
+let showServerIP   = false;
+let stopAtBlockEnd = false;
 let noteSize     = 42; // percent relative to fontSize
 let emojiTarget  = null; // textarea activo para insertar emoji
 
@@ -1752,8 +1758,9 @@ function applyConfigFromMsg(cfg) {
   if (cfg.speakerSize  != null) speakerSize  = cfg.speakerSize;
   if (cfg.noteSize     != null) noteSize     = cfg.noteSize;
   if (cfg.contentWidth != null) contentWidth = cfg.contentWidth;
-  if (cfg.hideCursor   != null) { hideCursor   = cfg.hideCursor;   const el=document.getElementById("cfg-hide-cursor"); if(el) el.checked=hideCursor; }
-  if (cfg.showServerIP != null) { showServerIP = cfg.showServerIP; const el=document.getElementById("cfg-show-ip"); if(el) el.checked=showServerIP; }
+  if (cfg.hideCursor   != null) { hideCursor   = cfg.hideCursor;   const el=document.getElementById("cfg-hide-cursor"); if(el) el.classList.toggle("on", hideCursor); }
+  if (cfg.showServerIP != null) { showServerIP = cfg.showServerIP; const el=document.getElementById("cfg-show-ip"); if(el) el.classList.toggle("on", showServerIP); }
+  if (cfg.stopAtBlockEnd != null) { stopAtBlockEnd = cfg.stopAtBlockEnd; const el=document.getElementById("toggle-stop-block"); if(el) el.classList.toggle("on", stopAtBlockEnd); }
   syncConfigTab();
 }
 
@@ -1780,8 +1787,9 @@ function onCfgNote(v) {
   clearTimeout(cfgSpT);
   cfgSpT = setTimeout(() => sendConfig(), 80);
 }
-function onCfgHideCursor(v) { hideCursor = v; sendConfig(); }
-function onCfgShowIP(v)     { showServerIP = v; sendConfig(); }
+function onCfgHideCursor()      { hideCursor = !hideCursor; document.getElementById("cfg-hide-cursor").classList.toggle("on", hideCursor); sendConfig(); }
+function onCfgShowIP()          { showServerIP = !showServerIP; document.getElementById("cfg-show-ip").classList.toggle("on", showServerIP); sendConfig(); }
+function toggleStopAtBlockEnd(btn) { stopAtBlockEnd = !stopAtBlockEnd; btn.classList.toggle("on", stopAtBlockEnd); sendConfig(); }
 function saveConfig()  { send({ type:"save_config" }); }
 function resetConfig() { send({ type:"reset_config" }); }
 function onCfgWidth(v) {
@@ -1799,7 +1807,7 @@ function onCfgSpeed(v) {
   cfgSpT = setTimeout(() => send({type:"set_speed", value:speed}), 80);
 }
 function sendConfig() {
-  send({ type:"set_config", config:{ speakerSize, noteSize, contentWidth, hideCursor, showServerIP } });
+  send({ type:"set_config", config:{ speakerSize, noteSize, contentWidth, hideCursor, showServerIP, stopAtBlockEnd } });
 }
 
 function switchRTab(name, btn) {

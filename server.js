@@ -63,7 +63,7 @@ const PASTEL_COLORS = [
 const CONFIG_FILE = path.join(__dirname, "config.json");
 const DEFAULT_CONFIG = {
   speakerSize: 22, noteSize: 42, contentWidth: 80,
-  hideCursor: false, showServerIP: false,
+  hideCursor: false, showServerIP: false, stopAtBlockEnd: false,
 };
 
 function loadSavedConfig() {
