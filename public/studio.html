@@ -1071,10 +1071,14 @@ function renderParticipants() {
   if (!script) { el.innerHTML = ""; return; }
   el.innerHTML = (script.participants || []).map((p, i) => {
     const color = COLORS[p.colorIdx ?? i] || COLORS[0];
+    const photo = participantPhotos[p.id];
+    const swatchStyle = photo
+      ? `background:${color.bg};background-image:url('${photo}');background-size:cover;background-position:center`
+      : `background:${color.bg}`;
     return `
       <div class="participant-row">
         <div class="p-color-swatch"
-             style="background:${color.bg}"
+             style="${swatchStyle}"
              onclick="openColorPicker(event,${i})"
              title="Cambiar color">
         </div>
@@ -1124,6 +1128,27 @@ function openColorPicker(evt, participantIdx) {
   colorPickerTarget = participantIdx;
   const el = document.getElementById("color-picker");
   el.classList.add("open");
+  // Botón borrar foto — solo si hay foto para este participante
+  const pid = script.participants[participantIdx]?.id;
+  let delBtn = el.querySelector(".cp-del-photo");
+  if(pid && participantPhotos[pid]){
+    if(!delBtn){
+      delBtn = document.createElement("button");
+      delBtn.className = "cp-del-photo";
+      delBtn.style.cssText = "width:100%;margin-top:6px;padding:5px;border-radius:6px;border:1px solid rgba(251,113,133,.3);background:rgba(251,113,133,.08);color:var(--red);font-size:11px;cursor:pointer;";
+      delBtn.textContent = "🗑 Eliminar foto";
+      el.appendChild(delBtn);
+    }
+    delBtn.onclick = () => {
+      send({type:"set_participant_photo", participantId:pid, photo:null});
+      delete participantPhotos[pid];
+      renderEditor();
+      document.getElementById("color-picker").classList.remove("open");
+    };
+    delBtn.style.display = "block";
+  } else if(delBtn) {
+    delBtn.style.display = "none";
+  }
   const rect = evt.target.getBoundingClientRect();
   const pickerH = 96; // altura aproximada del picker (2 filas de swatches)
   const spaceBelow = window.innerHeight - rect.bottom;
@@ -1196,9 +1221,13 @@ function renderSpeakerPills() {
   el.innerHTML = (script.participants || []).map((p, i) => {
     const color = COLORS[p.colorIdx ?? i] || COLORS[0];
     const active = activeSpeakerIdx === i;
+    const photo = participantPhotos[p.id];
+    const avatar = photo
+      ? `<img src="${photo}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+      : `<span style="width:10px;height:10px;border-radius:50%;background:${color.bg};flex-shrink:0;display:inline-block"></span>`;
     return `<div class="sp-pill ${active?"active":""}"
-                 style="background:${color.bg}${active?"28":"14"};color:${color.bg};border-color:${active?color.bg:"transparent"}"
-                 onclick="setActiveSpeaker(${i})">${esc(p.name)}</div>`;
+                 style="background:${color.bg}${active?"28":"14"};color:${color.bg};border-color:${active?color.bg:"transparent"};display:flex;align-items:center;gap:5px"
+                 onclick="setActiveSpeaker(${i})">${avatar}${esc(p.name)}</div>`;
   }).join("");
 }
 
