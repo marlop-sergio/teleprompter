@@ -451,8 +451,9 @@ function tick(ts){
   // Si hay un salto animado en curso, no avanzar el scroll automático para no pisar
   if(!_smoothRaf){ scrollPx+=speed*dt; applyScroll(); }
   updateActiveLine();
-  // Auto-stop cuando la última línea pasa el cursor de foco
-  const lastLine = contentEl.querySelector(".script-line:last-child");
+  // Auto-stop cuando la última línea del guión completo pasa el cursor de foco
+  const allLines = contentEl.querySelectorAll(".script-line");
+  const lastLine = allLines[allLines.length - 1];
   if(lastLine){
     const focusY = window.innerHeight*0.5+26;
     if(lastLine.getBoundingClientRect().bottom < focusY){
