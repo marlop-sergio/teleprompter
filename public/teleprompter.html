@@ -208,6 +208,8 @@ html,body{height:100%;background:var(--bg);color:var(--white);
 </script>
 
 <script>
+function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
 let COLORS=[], script=null, playing=false, speed=45, fontSize=56, speakerSize=22, noteSize=42;
 let scrollPx=0, rafId=null, lastTs=null;
 let clockItems=["clock"], clockVisible=false, chronoStart=null, chronoElapsed=0, timerStart=null, timerElapsed=0, timerSec=600;
@@ -352,7 +354,7 @@ function renderHUDParticipants(participants){
   document.getElementById("participants").innerHTML=
     participants.map((p,i)=>{
       const c=COLORS[p.colorIdx??i]||COLORS[0];
-      return `<span class="hud-badge on" style="background:${c.bg}22;color:${c.bg}">${p.name}</span>`;
+      return `<span class="hud-badge on" style="background:${c.bg}22;color:${c.bg}">${esc(p.name)}</span>`;
     }).join("");
 }
 

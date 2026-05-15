@@ -5,6 +5,7 @@ public/fonts/*.woff2
 public/fonts/fonts.css
 scripts/*.json
 *.log
+security_review_*.md
 .DS_Store
 Thumbs.db
 .vscode/

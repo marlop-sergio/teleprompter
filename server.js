@@ -14,6 +14,14 @@ const QRCode = require("qrcode");
 const { version: VERSION } = require("./package.json");
 const PORT = 3000;
 const SCRIPTS_DIR = path.join(__dirname, "scripts");
+const SCRIPTS_DIR_NORMALIZED = SCRIPTS_DIR + path.sep;
+
+function safePath(id) {
+  if (!/^[\w\-]+\.json$/.test(id)) throw new Error("id inválido");
+  const resolved = path.resolve(SCRIPTS_DIR, id);
+  if (!resolved.startsWith(SCRIPTS_DIR_NORMALIZED)) throw new Error("path traversal");
+  return resolved;
+}
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".css":  "text/css",
@@ -79,15 +87,16 @@ function listScripts() {
     .filter(f => f.endsWith(".json"))
     .map(f => {
       try {
-        const raw = JSON.parse(fs.readFileSync(path.join(SCRIPTS_DIR, f), "utf8"));
+        const raw = JSON.parse(fs.readFileSync(safePath(f), "utf8"));
         return { id: f, title: raw.title || f, updatedAt: raw.updatedAt };
-      } catch { return { id: f, title: f }; }
+      } catch { return null; }
     })
+    .filter(Boolean)
     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
 
 function loadScript(id) {
-  const p = path.join(SCRIPTS_DIR, id);
+  let p; try { p = safePath(id); } catch { return null; }
   if (!fs.existsSync(p)) return null;
   return JSON.parse(fs.readFileSync(p, "utf8"));
 }
@@ -96,12 +105,12 @@ function saveScript(script) {
   script.updatedAt = Date.now();
   const id = script.id || `script_${Date.now()}.json`;
   script.id = id;
-  fs.writeFileSync(path.join(SCRIPTS_DIR, id), JSON.stringify(script, null, 2));
+  fs.writeFileSync(safePath(id), JSON.stringify(script, null, 2));
   return id;
 }
 
 function deleteScript(id) {
-  const p = path.join(SCRIPTS_DIR, id);
+  let p; try { p = safePath(id); } catch { return; }
   if (fs.existsSync(p)) fs.unlinkSync(p);
 }
 
@@ -191,7 +200,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const filePath = path.join(__dirname, "public", urlPath);
+  const publicDir = path.join(__dirname, "public");
+  const filePath  = path.join(publicDir, urlPath);
+  if (!filePath.startsWith(publicDir + path.sep)) {
+    res.writeHead(403); return res.end("Forbidden");
+  }
   const ext = path.extname(filePath);
   fs.readFile(filePath, (err, data) => {
     if (err) { res.writeHead(404); return res.end("Not found"); }
