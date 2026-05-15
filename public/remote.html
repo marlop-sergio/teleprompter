@@ -136,6 +136,19 @@ input::placeholder{color:var(--muted)}
 .block-chip:active{transform:scale(.95)}
 .block-chip.active{background:rgba(124,159,255,.12);border-color:var(--accent);color:var(--accent)}
 
+/* Participant photos */
+.photo-row{display:flex;align-items:center;gap:12px;background:var(--s2);
+  border-radius:12px;padding:10px 12px;border:1px solid var(--border)}
+.photo-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;
+  background:var(--s3);border:2px solid var(--border)}
+.photo-avatar.placeholder{display:flex;align-items:center;justify-content:center;
+  font-size:18px;color:var(--text2)}
+.photo-name{flex:1;font-size:13px;font-weight:500;color:var(--text)}
+.photo-btn{padding:7px 12px;border-radius:8px;border:1px solid var(--border);
+  background:var(--s3);color:var(--text2);font-size:11px;font-weight:600;
+  letter-spacing:.05em;cursor:pointer;white-space:nowrap}
+.photo-btn:active{transform:scale(.95)}
+
 /* Speed */
 .speed-section{padding:0 16px 16px}
 .speed-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -229,7 +242,15 @@ input[type=range]::-webkit-slider-thumb{
     </div>
     <input type="range" id="speed-range" min="5" max="200" value="45" oninput="onSpeed(this.value)">
   </div>
+
+  <!-- Fotos de locutores -->
+  <div id="photos-section" style="display:none;padding:0 16px 16px">
+    <div class="blocks-lbl" style="margin-bottom:12px">Fotos de locutores</div>
+    <div id="photos-list" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
 </div>
+
+<canvas id="photo-canvas" style="display:none"></canvas>
 
 <div id="toast"></div>
 <div style="position:fixed;bottom:8px;right:12px;font-size:10px;letter-spacing:.05em;color:var(--text2);opacity:.6;pointer-events:none">
@@ -238,6 +259,7 @@ input[type=range]::-webkit-slider-thumb{
 
 <script>
 let ws, myName="", myClientId=null, playing=false, speed=45, scrollPx=0, activeBlock=0;
+let _remoteScript=null, _remotePhotos={};
 let COLORS=[
   {bg:"#FFB3B3"},{bg:"#FFD4A0"},{bg:"#FFF4A0"},{bg:"#AEFFCC"},
   {bg:"#A0DEFF"},{bg:"#A0AAFF"},{bg:"#CCA0FF"},{bg:"#FFB3E8"},
@@ -297,9 +319,16 @@ function connectWS(){
         playing=msg.playhead?.playing||false;
         scrollPx=msg.playhead?.scrollPx||0;
         syncPlayBtn(); syncSlider(speed); updateThumb();
-        if(msg.script) renderBlocks(msg.script);
+        if(msg.participantPhotos) _remotePhotos=msg.participantPhotos;
+        if(msg.script){ renderBlocks(msg.script); renderPhotoSection(msg.script); }
         break;
-      case "script_loaded": if(msg.script) renderBlocks(msg.script); break;
+      case "script_loaded":
+        if(msg.script){ renderBlocks(msg.script); renderPhotoSection(msg.script); }
+        break;
+      case "participant_photo":
+        _remotePhotos[msg.participantId]=msg.photo;
+        updateParticipantAvatar(msg.participantId, msg.photo);
+        break;
       case "play":        playing=true;  syncPlayBtn(); break;
       case "pause":       playing=false; syncPlayBtn(); break;
       case "reset":       playing=false; scrollPx=0; syncPlayBtn(); updateThumb(); break;
@@ -439,6 +468,68 @@ function toast(msg){
   clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove("show"),2200);
 }
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+// ── Fotos de locutores ─────────────────────────────────────────────────────
+function renderPhotoSection(script){
+  const participants = script?.participants||[];
+  const sec = document.getElementById("photos-section");
+  const list = document.getElementById("photos-list");
+  if(!participants.length){ sec.style.display="none"; return; }
+  sec.style.display="block";
+  list.innerHTML = participants.map(p => {
+    const photo = _remotePhotos[p.id];
+    const color = COLORS[p.colorIdx??0]||COLORS[0];
+    const avatarHtml = photo
+      ? `<img class="photo-avatar" id="pav-${p.id}" src="${photo}" alt="${esc(p.name)}">`
+      : `<div class="photo-avatar placeholder" id="pav-${p.id}" style="background:${color.bg}22;color:${color.bg}">
+           ${esc(p.name).charAt(0).toUpperCase()}</div>`;
+    return `<div class="photo-row" data-pid="${p.id}">
+      ${avatarHtml}
+      <span class="photo-name">${esc(p.name)}</span>
+      <label class="photo-btn">
+        📷
+        <input type="file" accept="image/*" capture="user" style="display:none"
+               onchange="handlePhotoFile(this,'${p.id}')">
+      </label>
+    </div>`;
+  }).join("");
+}
+
+function updateParticipantAvatar(pid, photo){
+  const el = document.getElementById(`pav-${pid}`);
+  if(!el) return;
+  const img = document.createElement("img");
+  img.className="photo-avatar"; img.id=`pav-${pid}`; img.src=photo; img.alt="";
+  el.replaceWith(img);
+}
+
+function handlePhotoFile(input, participantId){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => compressAndSend(e.target.result, participantId);
+  reader.readAsDataURL(file);
+  input.value="";
+}
+
+function compressAndSend(dataUrl, participantId){
+  const canvas = document.getElementById("photo-canvas");
+  const ctx = canvas.getContext("2d");
+  const img = new Image();
+  img.onload = () => {
+    const size = 128;
+    canvas.width=size; canvas.height=size;
+    const s = Math.min(img.width, img.height);
+    const ox = (img.width-s)/2, oy = (img.height-s)/2;
+    ctx.drawImage(img, ox, oy, s, s, 0, 0, size, size);
+    const compressed = canvas.toDataURL("image/jpeg", 0.75);
+    _remotePhotos[participantId] = compressed;
+    updateParticipantAvatar(participantId, compressed);
+    ws?.readyState===1 && ws.send(JSON.stringify({type:"set_participant_photo", participantId, photo:compressed}));
+    toast("Foto enviada ✓");
+  };
+  img.src = dataUrl;
+}
 </script>
 </body>
 </html>

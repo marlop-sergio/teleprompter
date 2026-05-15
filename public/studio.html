@@ -864,7 +864,8 @@ let activeBlockIdx = 0;
 let dirty      = false;
 let speakerSize  = 22; // percent relative to fontSize
 let contentWidth = 80;
-let hideCursor     = false;
+let hideCursor         = false;
+let participantPhotos  = {};
 let showServerIP   = false;
 let stopAtBlockEnd = false;
 let noteSize     = 42; // percent relative to fontSize
@@ -922,6 +923,7 @@ function connectWS() {
     case "init":
       COLORS  = msg.colors;
       scripts = msg.scripts || [];
+      if (msg.participantPhotos) participantPhotos = msg.participantPhotos;
       if (msg.script) { script = msg.script; activeScriptId = msg.activeScriptId; }
       speed    = msg.playhead?.speed    || 45;
       fontSize = msg.playhead?.fontSize || 56;
@@ -989,6 +991,10 @@ function connectWS() {
     case "timer_reset":   timerStart = null; timerElapsed = 0; timerRunning = false; updateTimerBtn(); break;
     case "set_config":    applyConfigFromMsg(msg.config); syncConfigTab(); break;
     case "config_saved":  toast(msg.reset ? "Config restablecida ✓" : "Config guardada como predeterminada ✓"); break;
+    case "participant_photo":
+      participantPhotos[msg.participantId] = msg.photo;
+      renderBlocks(); // actualiza dots con foto
+      break;
     case "reload":        toast("Actualizando servidor… recargando en 3s"); setTimeout(() => location.reload(), 3000); break;
   }
   };
@@ -1239,11 +1245,15 @@ function renderLineHTML(line, bi, li) {
   const color  = COLORS[p?.colorIdx ?? 0] || COLORS[0];
   const isNote = line.type === "note";
   const dotColor = isNote ? "var(--orange)" : color.bg;
+  const photo = !isNote && p ? participantPhotos[p.id] : null;
+  const dotStyle = photo
+    ? `background:${dotColor};background-image:url('${photo}');background-size:cover;background-position:center;border:2px solid ${dotColor}`
+    : `background:${dotColor}`;
 
   return `
     <div class="line-editor" data-line="${li}" draggable="true"
          style="border-left:4px solid ${dotColor};padding-left:10px">
-      <div class="line-speaker-dot" style="background:${dotColor}"
+      <div class="line-speaker-dot" style="${dotStyle}"
            title="${isNote?"Nota (clic para cambiar)":"Cambiar locutor"}"
            onclick="openSpeakerPicker(${bi},${li},event)"></div>
       <textarea class="line-textarea"

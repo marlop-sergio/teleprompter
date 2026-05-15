@@ -37,8 +37,11 @@ body{transform-origin:center center;transition:transform .5s cubic-bezier(.4,0,.
 .hud-dot.live{background:#4ade80;box-shadow:0 0 7px #4ade80}
 .hud-participants{display:flex;gap:8px;flex:1;flex-wrap:wrap}
 .hud-badge{padding:2px 10px;border-radius:20px;font-size:11px;font-weight:400;
-  letter-spacing:.05em;opacity:.3;transition:opacity .3s}
+  letter-spacing:.05em;opacity:.3;transition:opacity .3s;
+  display:flex;align-items:center;gap:6px}
 .hud-badge.on{opacity:1}
+.hud-avatar{width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.speaker-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;margin-bottom:2px}
 #hud-clocks{
   margin-left:auto;display:flex;flex-direction:row;
   align-items:center;gap:20px;flex-shrink:0;
@@ -214,6 +217,7 @@ function esc(s){ const d=document.createElement("div"); d.textContent=s; return 
 let COLORS=[], script=null, playing=false, speed=45, fontSize=56, speakerSize=22, noteSize=42;
 let stopAtBlockEnd=false, _stoppedBlocks=new Set();
 let myClientId=null, _rotDeg=0, _flipH=false, _flipV=false;
+let participantPhotos={};
 let scrollPx=0, rafId=null, lastTs=null;
 let clockItems=["clock"], clockVisible=false, chronoStart=null, chronoElapsed=0, timerStart=null, timerElapsed=0, timerSec=600;
 
@@ -241,6 +245,7 @@ function connectWS(){
     case "init":
       myClientId = msg.clientId;
       COLORS = msg.colors;
+      if(msg.participantPhotos) participantPhotos = msg.participantPhotos;
       if(msg.script) loadScript(msg.script);
       applyPlayhead(msg.playhead);
       if(msg.config) applyConfig(msg.config);
@@ -277,6 +282,10 @@ function connectWS(){
       }
       break;
     }
+    case "participant_photo":
+      participantPhotos[msg.participantId] = msg.photo;
+      renderHUDParticipants(script?.participants||[]);
+      break;
     case "reload":
       setTimeout(() => location.reload(), 3000);
       break;
@@ -347,8 +356,14 @@ function loadScript(sc){
         if(p){
           const sp=document.createElement("div");
           sp.className="line-speaker";
-          sp.style.cssText=`background:${color.bg}28;color:${color.bg};`;
-          sp.textContent=p.name; lineEl.appendChild(sp);
+          sp.style.cssText=`background:${color.bg}28;color:${color.bg};display:flex;align-items:center;gap:6px`;
+          const photo=participantPhotos[p.id];
+          if(photo){
+            const av=document.createElement("img");
+            av.className="speaker-avatar"; av.src=photo; av.alt=""; sp.appendChild(av);
+          }
+          sp.appendChild(document.createTextNode(p.name));
+          lineEl.appendChild(sp);
         }
         const tx=document.createElement("div");
         tx.className="line-text";
@@ -401,7 +416,11 @@ function renderHUDParticipants(participants){
   document.getElementById("participants").innerHTML=
     participants.map((p,i)=>{
       const c=COLORS[p.colorIdx??i]||COLORS[0];
-      return `<span class="hud-badge on" style="background:${c.bg}22;color:${c.bg}">${esc(p.name)}</span>`;
+      const photo=participantPhotos[p.id];
+      const avatarHtml=photo
+        ?`<img class="hud-avatar" src="${photo}" alt="">`
+        :"";
+      return `<span class="hud-badge on" style="background:${c.bg}22;color:${c.bg}">${avatarHtml}${esc(p.name)}</span>`;
     }).join("");
 }
 

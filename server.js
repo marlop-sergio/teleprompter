@@ -97,6 +97,7 @@ const state = {
     timerStart:    null,
   },
   clients: new Map(),       // ws → {role, id, name}
+  participantPhotos: {},    // participantId → dataURL (memoria de sesión)
 };
 
 // ── Utilidades de scripts ─────────────────────────────────────────────────────
@@ -277,6 +278,7 @@ wss.on("connection", (ws, req) => {
     playhead: state.playhead,
     config: state.playhead.config || {},
     clock: state.clock,
+    participantPhotos: state.participantPhotos,
   });
 
   ws.on("message", (raw) => {
@@ -310,6 +312,15 @@ function handleMessage(ws, msg) {
       info.role = msg.role; // "teleprompter" | "studio" | "remote"
       info.name = msg.name || msg.role;
       broadcastAll({ type: "clients_updated", clients: getClientList() });
+      break;
+    }
+
+    // ── Fotos de participantes ────────────────────────────────────────────────
+    case "set_participant_photo": {
+      if (msg.participantId && msg.photo) {
+        state.participantPhotos[msg.participantId] = msg.photo;
+        broadcastAll({ type: "participant_photo", participantId: msg.participantId, photo: msg.photo });
+      }
       break;
     }
 
