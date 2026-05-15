@@ -523,6 +523,7 @@ input[type=range]::-moz-range-thumb{
       <button class="rpanel-tab" onclick="switchRTab('clock',this)">🕐 Tiempo</button>
       <button class="rpanel-tab" onclick="switchRTab('voice',this)">🎤 Voz</button>
       <button class="rpanel-tab" onclick="switchRTab('config',this)">⚙ Config</button>
+      <button class="rpanel-tab" onclick="switchRTab('network',this)">🌐 Red</button>
     </div>
 
     <!-- SECTION: Transport -->
@@ -750,6 +751,18 @@ input[type=range]::-moz-range-thumb{
 
       </div>
     </div><!-- /rtab-config -->
+
+    <!-- SECTION: Red -->
+    <div class="rpanel-section" id="rtab-network">
+      <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.06em;text-transform:uppercase">Dirección del servidor</div>
+        <div id="net-tab-ips" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">
+          Escanea los QR desde cada dispositivo o escribe la URL manualmente en el navegador.
+        </div>
+        <div id="net-tab-qrs" style="display:flex;flex-direction:column;gap:16px;margin-top:4px"></div>
+      </div>
+    </div><!-- /rtab-network -->
 
   </div>
 </div>
@@ -1795,6 +1808,42 @@ function switchRTab(name, btn) {
   btn.classList.add("active");
   document.getElementById("rtab-" + name).classList.add("active");
   if (name === "config") syncConfigTab();
+  if (name === "network") renderNetTab();
+}
+
+async function renderNetTab() {
+  if (!_netInfo) _netInfo = await fetch("/api/network").then(r => r.json());
+  const info = _netInfo;
+  const proto = location.protocol;
+  const host  = info.hostname || info.preferredIp;
+  const port  = location.port || 3000;
+
+  // IPs
+  const ipsEl = document.getElementById("net-tab-ips");
+  let html = "";
+  if (info.hostname)
+    html += `<div style="font-size:14px;font-weight:600;color:var(--accent)">${proto}//${info.hostname}:${port} <span style="font-size:10px;color:var(--text2)">(hostname)</span></div>`;
+  (info.allIps||[]).forEach(ip =>
+    html += `<div style="font-size:13px;color:var(--text2)">${proto}//${ip}:${port}</div>`
+  );
+  if (!html) html = `<div style="color:var(--text2);font-size:13px">Sin IP de red local detectada</div>`;
+  ipsEl.innerHTML = html;
+
+  // QR cards
+  const qrsEl = document.getElementById("net-tab-qrs");
+  if (!info.qrCodes || !host) { qrsEl.innerHTML = ""; return; }
+  const cards = [
+    { key:"editor",       label:"EDITOR",                url:`${proto}//${host}:${port}/` },
+    { key:"remote",       label:"MANDO REMOTO",          url:`${proto}//${host}:${port}/remote.html` },
+    { key:"teleprompter", label:"TELEPROMPTER (cast)",   url:`${proto}//${host}:${port}/teleprompter.html` },
+  ];
+  qrsEl.innerHTML = cards.map(c => `
+    <div style="background:#fff;border-radius:16px;padding:20px 24px 16px;
+                display:flex;flex-direction:column;align-items:center;gap:10px">
+      ${(info.qrCodes[c.key]||"").replace("<svg","<svg width='180' height='180'")}
+      <div style="font-size:10px;font-weight:700;letter-spacing:.14em;color:#444">${c.label}</div>
+      <div style="font-size:10px;color:#999;word-break:break-all;text-align:center">${c.url}</div>
+    </div>`).join("");
 }
 
 // ══════════════════════════════════════════════════════
@@ -2093,7 +2142,8 @@ async function showQRModal(type, e) {
   e.preventDefault();
   if (!_netInfo) _netInfo = await fetch("/api/network").then(r => r.json());
   const info = _netInfo;
-  const base = info.preferredIp ? `http://${info.preferredIp}:3000` : location.origin;
+  const host = info.hostname || info.preferredIp;
+  const base = host ? `${location.protocol}//${host}:${location.port||3000}` : location.origin;
   const labels = { teleprompter:"Teleprompter", remote:"Mando remoto", editor:"Editor" };
   const urls   = { teleprompter:`${base}/teleprompter.html`, remote:`${base}/remote.html`, editor:`${base}/` };
   const svg    = info.qrCodes?.[type] || "";

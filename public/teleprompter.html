@@ -493,10 +493,13 @@ function flash(){
       netEl.innerHTML = `<div class="net-no-ip">⚠ No se detectó IP de red local</div>`;
       return;
     }
-    const base = `http://${info.preferredIp}:${location.port||3000}`;
-    netEl.innerHTML = info.allIps.map(ip =>
-      `<div class="net-ips">${ip}:${location.port||3000}</div>`
-    ).join("");
+    const host = info.hostname || info.preferredIp;
+    const base = `${location.protocol}//${host}:${location.port||3000}`;
+    netEl.innerHTML = (info.allIps||[]).map(ip =>
+      `<div class="net-ips">${location.protocol}//${ip}:${location.port||3000}</div>`
+    ).join("") + (info.hostname
+      ? `<div class="net-ips" style="color:var(--accent)">${location.protocol}//${info.hostname}:${location.port||3000}</div>`
+      : "");
     const cards = [
       { svg: info.qrCodes.editor,        label: "EDITOR",                 url: base + "/" },
       { svg: info.qrCodes.remote,        label: "Mando remoto",            url: base + "/remote.html" },
