@@ -1806,7 +1806,8 @@ function exportPrint() {
   if (!w) { toast("Permite ventanas emergentes para imprimir"); return; }
   w.document.write(buildPrintHTML(script));
   w.document.close();
-  w.onload = () => w.print();
+  // onload ya se disparó antes de asignarlo — usar setTimeout
+  setTimeout(() => { w.focus(); w.print(); }, 400);
 }
 
 function buildPrintHTML(sc) {
