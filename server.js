@@ -37,10 +37,15 @@ function safePath(id) {
   return resolved;
 }
 const MIME = {
-  ".html": "text/html; charset=utf-8",
-  ".css":  "text/css",
-  ".js":   "application/javascript",
-  ".json": "application/json",
+  ".html":  "text/html; charset=utf-8",
+  ".css":   "text/css",
+  ".js":    "application/javascript",
+  ".json":  "application/json",
+  ".woff2": "font/woff2",
+  ".woff":  "font/woff",
+  ".svg":   "image/svg+xml",
+  ".png":   "image/png",
+  ".ico":   "image/x-icon",
 };
 
 const PASTEL_COLORS = [

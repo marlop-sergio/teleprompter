@@ -859,7 +859,7 @@ let dragState = null; // {bi, li}
 // ══════════════════════════════════════════════════════
 let ws;
 function connectWS() {
-  ws = new WebSocket(`ws://${location.host}`);
+  ws = new WebSocket(`${location.protocol==="https:"?"wss:":"ws:"}//${location.host}`);
   ws.onopen = () => {
     document.getElementById("ws-dot").classList.add("live");
     document.getElementById("ws-label").textContent = "Conectado";
