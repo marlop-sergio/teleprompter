@@ -802,6 +802,9 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 
 <!-- Color picker -->
 <div id="color-picker"></div>
+<canvas id="studio-photo-canvas" style="display:none"></canvas>
+<input type="file" id="studio-photo-input" accept="image/*" style="display:none"
+       onchange="handleStudioPhoto(this)">
 <!-- Speaker picker -->
 <div id="speaker-picker"></div>
 <!-- Emoji picker -->
@@ -1128,27 +1131,42 @@ function openColorPicker(evt, participantIdx) {
   colorPickerTarget = participantIdx;
   const el = document.getElementById("color-picker");
   el.classList.add("open");
-  // Botón borrar foto — solo si hay foto para este participante
   const pid = script.participants[participantIdx]?.id;
-  let delBtn = el.querySelector(".cp-del-photo");
-  if(pid && participantPhotos[pid]){
-    if(!delBtn){
-      delBtn = document.createElement("button");
-      delBtn.className = "cp-del-photo";
-      delBtn.style.cssText = "width:100%;margin-top:6px;padding:5px;border-radius:6px;border:1px solid rgba(251,113,133,.3);background:rgba(251,113,133,.08);color:var(--red);font-size:11px;cursor:pointer;";
-      delBtn.textContent = "🗑 Eliminar foto";
-      el.appendChild(delBtn);
-    }
-    delBtn.onclick = () => {
-      send({type:"set_participant_photo", participantId:pid, photo:null});
-      delete participantPhotos[pid];
-      renderEditor();
-      document.getElementById("color-picker").classList.remove("open");
-    };
-    delBtn.style.display = "block";
-  } else if(delBtn) {
-    delBtn.style.display = "none";
+  const hasPhoto = pid && !!participantPhotos[pid];
+
+  // Botón añadir foto (solo si no hay foto)
+  let addBtn = el.querySelector(".cp-add-photo");
+  if(!addBtn){
+    addBtn = document.createElement("button");
+    addBtn.className = "cp-add-photo";
+    addBtn.style.cssText = "width:100%;margin-top:6px;padding:5px;border-radius:6px;border:1px solid rgba(124,159,255,.25);background:rgba(124,159,255,.08);color:var(--accent);font-size:11px;cursor:pointer;";
+    addBtn.textContent = "📷 Añadir foto";
+    el.appendChild(addBtn);
   }
+  addBtn.onclick = () => {
+    const inp = document.getElementById("studio-photo-input");
+    inp.dataset.pid = pid;
+    inp.click();
+    document.getElementById("color-picker").classList.remove("open");
+  };
+  addBtn.style.display = hasPhoto ? "none" : "block";
+
+  // Botón borrar foto (solo si hay foto)
+  let delBtn = el.querySelector(".cp-del-photo");
+  if(!delBtn){
+    delBtn = document.createElement("button");
+    delBtn.className = "cp-del-photo";
+    delBtn.style.cssText = "width:100%;margin-top:4px;padding:5px;border-radius:6px;border:1px solid rgba(251,113,133,.3);background:rgba(251,113,133,.08);color:var(--red);font-size:11px;cursor:pointer;";
+    delBtn.textContent = "🗑 Eliminar foto";
+    el.appendChild(delBtn);
+  }
+  delBtn.onclick = () => {
+    send({type:"set_participant_photo", participantId:pid, photo:null});
+    delete participantPhotos[pid];
+    renderEditor();
+    document.getElementById("color-picker").classList.remove("open");
+  };
+  delBtn.style.display = hasPhoto ? "block" : "none";
   const rect = evt.target.getBoundingClientRect();
   const pickerH = 96; // altura aproximada del picker (2 filas de swatches)
   const spaceBelow = window.innerHeight - rect.bottom;
@@ -1163,6 +1181,33 @@ function openColorPicker(evt, participantIdx) {
   // Mark current
   const current = script.participants[participantIdx]?.colorIdx ?? 0;
   el.querySelectorAll(".cp-swatch").forEach((s,i) => s.classList.toggle("sel", i===current));
+}
+
+function handleStudioPhoto(input) {
+  const pid = input.dataset.pid;
+  const file = input.files[0];
+  if(!file || !pid) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.getElementById("studio-photo-canvas");
+      const ctx = canvas.getContext("2d");
+      const size = 128;
+      canvas.width = size; canvas.height = size;
+      const s = Math.min(img.width, img.height);
+      const ox = (img.width - s) / 2, oy = (img.height - s) / 2;
+      ctx.drawImage(img, ox, oy, s, s, 0, 0, size, size);
+      const photo = canvas.toDataURL("image/jpeg", 0.75);
+      participantPhotos[pid] = photo;
+      send({type:"set_participant_photo", participantId:pid, photo});
+      renderEditor();
+      toast("Foto actualizada ✓");
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = "";
 }
 
 function pickColor(colorIdx) {
