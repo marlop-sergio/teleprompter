@@ -1802,12 +1802,12 @@ async function exportScriptById(id) {
 
 function exportPrint() {
   if (!script) { toast("No hay guión activo"); return; }
-  const w = window.open("", "_blank");
+  const html = buildPrintHTML(script);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  const w    = window.open(url, "_blank");
   if (!w) { toast("Permite ventanas emergentes para imprimir"); return; }
-  w.document.write(buildPrintHTML(script));
-  w.document.close();
-  // onload ya se disparó antes de asignarlo — usar setTimeout
-  setTimeout(() => { w.focus(); w.print(); }, 400);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function buildPrintHTML(sc) {
@@ -1838,6 +1838,7 @@ function buildPrintHTML(sc) {
   }).join("");
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${esc(sc.title||"Guión")}</title>
 <style>body{font-family:Georgia,serif;color:#111;background:#fff;max-width:800px;margin:0 auto;padding:32px 48px}@media print{body{padding:16px 24px}}</style>
+<script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>
 </head><body>
 <h1 style="font-size:24px;margin-bottom:4px">${esc(sc.title||"Guión")}</h1>
 <div style="font-size:12px;color:#666;margin-bottom:8px">${date}</div>
