@@ -377,6 +377,7 @@ function handleMessage(ws, msg) {
       state.script = sc;
       state.activeScriptId = msg.id;
       state.participantPhotos = photosFromScript(sc);
+      persistConfig({ ...loadSavedConfig(), lastScriptId: msg.id });
       state.playhead.blockIndex = 0;
       state.playhead.lineIndex  = 0;
       state.playhead.scrollPx   = 0;
@@ -522,6 +523,26 @@ function handleMessage(ws, msg) {
 }
 
 function clamp(v, min, max) { return Math.min(Math.max(Number(v) || 0, min), max); }
+
+// ── Git pull silencioso al arrancar ───────────────────────────────────────────
+try {
+  require("child_process").execSync("git pull origin main", { cwd: __dirname, timeout: 15000 });
+  console.log("✓ git pull completado");
+} catch { console.log("⚠ git pull omitido (sin internet o sin cambios)"); }
+
+// ── Autocarga del último guión ────────────────────────────────────────────────
+(function autoloadLastScript() {
+  const cfg = loadSavedConfig();
+  if (cfg.lastScriptId) {
+    const sc = loadScript(cfg.lastScriptId);
+    if (sc) {
+      state.script = sc;
+      state.activeScriptId = cfg.lastScriptId;
+      state.participantPhotos = photosFromScript(sc);
+      console.log(`✓ Guión cargado: ${sc.title}`);
+    }
+  }
+})();
 
 // ── Arranque ──────────────────────────────────────────────────────────────────
 server.listen(PORT, "0.0.0.0", () => {

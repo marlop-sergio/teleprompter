@@ -185,6 +185,10 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
   <div id="hud-server-ip" style="display:none;font-size:11px;color:#888;letter-spacing:.04em"></div>
   <div id="hud-clocks"></div>
 </div>
+<div id="follow-badge" style="position:fixed;bottom:18px;right:18px;background:rgba(0,0,0,.6);
+  border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px 12px;
+  font-size:11px;letter-spacing:.08em;color:rgba(255,255,255,.5);
+  opacity:0;transition:opacity .4s;pointer-events:none">SECUNDARIO</div>
 
 <div id="fade-top"></div>
 <div id="fade-bottom"></div>
@@ -275,11 +279,11 @@ function connectWS(){
     case "jump_line":     jumpToLine(msg.blockIndex, msg.lineIndex); break;
     case "sync_line":
       if(msg.senderId && myClientId && msg.senderId < myClientId){
-        // El otro teleprónter tiene UUID menor → es el líder; yo sigo
         _followMode = true;
         clearTimeout(_followTimer);
         _followTimer = setTimeout(() => { _followMode = false; }, 3000);
-        jumpToLine(msg.blockIndex, msg.lineIndex);
+        // Corrección suave: ajustar posición sin detener el scroll continuo
+        _softFollow(msg.blockIndex, msg.lineIndex);
       }
       break;
     case "timer_start":   timerStart=msg.at; timerElapsed=0; timerSec=msg.sec; renderHUDClocks(); break;
@@ -316,6 +320,23 @@ function connectWS(){
   };
 }
 connectWS();
+
+function _softFollow(bi, li){
+  const blockEl = contentEl.querySelector(`[data-block="${bi}"]`);
+  if(!blockEl) return;
+  const lines = blockEl.querySelectorAll(".script-line");
+  const lineEl = lines[li];
+  if(!lineEl) return;
+  const ct = contentEl.getBoundingClientRect().top;
+  const tt = lineEl.getBoundingClientRect().top;
+  const vh = document.getElementById("scroller").offsetHeight;
+  const target = Math.max(0, scrollPx + (tt - ct) - vh * 0.5);
+  // Solo corregir si la diferencia es significativa (>150px)
+  if(Math.abs(target - scrollPx) > 150) smoothScrollTo(target, 400);
+  // Indicador visual de modo seguidor
+  const badge = document.getElementById("follow-badge");
+  if(badge){ badge.style.opacity="1"; clearTimeout(badge._t); badge._t=setTimeout(()=>badge.style.opacity="0",1500); }
+}
 
 function applyDisplayTransform(){
   const parts=[];
@@ -545,7 +566,7 @@ function tick(ts){
   if(!lastTs) lastTs=ts;
   const dt=(ts-lastTs)/1000; lastTs=ts;
   // Si hay un salto animado en curso, no avanzar el scroll automático para no pisar
-  if(!_smoothRaf && !_followMode){ scrollPx+=speed*dt; applyScroll(); }
+  if(!_smoothRaf){ scrollPx+=speed*dt; applyScroll(); }
   updateActiveLine();
   // Auto-stop al final de cada bloque o al final del guión completo
   const focusY = window.innerHeight*0.5+26;

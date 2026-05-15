@@ -536,13 +536,6 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
     </div>
 
     <div id="editor-area">
-      <div style="display:flex;align-items:center;justify-content:space-between;
-                  padding:6px 4px 10px;border-bottom:1px solid var(--border);margin-bottom:12px">
-        <span style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)">
-          Detener al final de cada bloque
-        </span>
-        <button class="toggle" id="toggle-stop-block" onclick="toggleStopAtBlockEnd(this)" title="Pausar el teleprónter al llegar al final de cada bloque"></button>
-      </div>
       <div id="blocks-container"></div>
       <button id="add-block-btn" onclick="addBlock()">+ Añadir bloque</button>
     </div>
@@ -757,6 +750,10 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 
         <div class="config-row">
           <div class="config-header"><span class="config-label">Pantalla Teleprónter</span></div>
+          <div class="toggle-row">
+            <span class="toggle-label">Detener al final de cada bloque</span>
+            <button class="toggle" id="toggle-stop-block" onclick="toggleStopAtBlockEnd(this)"></button>
+          </div>
           <div class="toggle-row">
             <span class="toggle-label">Ocultar cursor del ratón</span>
             <button class="toggle" id="cfg-hide-cursor" onclick="onCfgHideCursor()"></button>
