@@ -65,6 +65,7 @@ const CONFIG_FILE  = path.join(__dirname, "config.json");
 const DEFAULT_CONFIG = {
   speakerSize: 22, noteSize: 42, contentWidth: 80,
   hideCursor: false, showServerIP: false, stopAtBlockEnd: false,
+  lineSpacing: 0.8, showSpeakerNames: true,
 };
 
 function loadSavedConfig() {
@@ -159,17 +160,30 @@ function getNetworkIPs() {
 
 async function buildNetworkInfo() {
   const { all, preferred } = getNetworkIPs();
-  // En modo HTTPS los QR usan el hostname .local (el cert es para el hostname, no la IP)
-  const qrHost = LOCAL_HOST || preferred;
-  if (!qrHost) return { allIps: all, preferredIp: preferred, qrCodes: null };
-  const base = `${PROTOCOL}://${qrHost}:${PORT}`;
   const opts = { type: "svg", margin: 2, color: { dark: "#111111", light: "#ffffff" }, width: 220 };
-  const [editor, remote, teleprompter] = await Promise.all([
-    QRCode.toString(base + "/",                  opts),
-    QRCode.toString(base + "/remote.html",       opts),
-    QRCode.toString(base + "/teleprompter.html", opts),
-  ]);
-  return { version: VERSION, allIps: all, preferredIp: preferred, hostname: LOCAL_HOST, qrCodes: { editor, remote, teleprompter } };
+
+  // Generar QRs para TODOS los hosts: hostname .local (si HTTPS) + todas las IPs
+  const hosts = [];
+  if (LOCAL_HOST) hosts.push({ host: LOCAL_HOST, protocol: PROTOCOL });
+  all.forEach(ip => hosts.push({ host: ip, protocol: PROTOCOL }));
+
+  if (!hosts.length) return { version: VERSION, allIps: all, preferredIp: preferred, hostname: LOCAL_HOST, qrCodes: null, allQrSets: [] };
+
+  const allQrSets = await Promise.all(hosts.map(async h => {
+    const base = `${h.protocol}://${h.host}:${PORT}`;
+    const [editor, remote, teleprompter] = await Promise.all([
+      QRCode.toString(base + "/",                  opts),
+      QRCode.toString(base + "/remote.html",       opts),
+      QRCode.toString(base + "/teleprompter.html", opts),
+    ]);
+    return { host: h.host, protocol: h.protocol, qrCodes: { editor, remote, teleprompter } };
+  }));
+
+  return {
+    version: VERSION, allIps: all, preferredIp: preferred, hostname: LOCAL_HOST,
+    qrCodes: allQrSets[0]?.qrCodes,   // retrocompatibilidad
+    allQrSets,
+  };
 }
 
 // ── Servidor HTTP/HTTPS ───────────────────────────────────────────────────────
@@ -275,6 +289,7 @@ wss.on("connection", (ws, req) => {
   state.clients.set(ws, { role: "unknown", clientId, id: null, name: null, ip });
 
   // Enviar estado inicial
+  const savedCfg = loadSavedConfig();
   send(ws, {
     type: "init",
     clientId,
@@ -282,6 +297,8 @@ wss.on("connection", (ws, req) => {
     scripts: listScripts(),
     activeScriptId: state.activeScriptId,
     script: state.script,
+    // lastScriptId solo cuando no hay guión activo (el estudio puede auto-cargarlo)
+    lastScriptId: state.script ? null : (savedCfg.lastScriptId || null),
     playhead: state.playhead,
     config: state.playhead.config || {},
     clock: state.clock,
@@ -387,7 +404,7 @@ function handleMessage(ws, msg) {
       state.playhead.lineIndex  = 0;
       state.playhead.scrollPx   = 0;
       state.playhead.playing    = false;
-      broadcastAll({ type: "script_loaded", script: sc, activeScriptId: msg.id });
+      broadcastAll({ type: "script_loaded", script: sc, activeScriptId: msg.id, fromSave: false });
       break;
     }
 
@@ -541,20 +558,6 @@ try {
     process.exit(0); // pm2 relanza automáticamente con el código nuevo en disco
   }
 } catch { console.log("⚠ git pull omitido (sin internet o sin cambios)"); }
-
-// ── Autocarga del último guión ────────────────────────────────────────────────
-(function autoloadLastScript() {
-  const cfg = loadSavedConfig();
-  if (cfg.lastScriptId) {
-    const sc = loadScript(cfg.lastScriptId);
-    if (sc) {
-      state.script = sc;
-      state.activeScriptId = cfg.lastScriptId;
-      state.participantPhotos = photosFromScript(sc);
-      console.log(`✓ Guión cargado: ${sc.title}`);
-    }
-  }
-})();
 
 // ── Arranque ──────────────────────────────────────────────────────────────────
 server.listen(PORT, "0.0.0.0", () => {

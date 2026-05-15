@@ -19,6 +19,7 @@
   --font-size:56px;
   --speaker-size:0.22em;  /* relative to font-size, configurable */
   --note-size:0.42em;
+  --line-spacing:0.8em;
 }
 
 html,body{height:100%;background:var(--bg);color:var(--white);
@@ -93,14 +94,14 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 .block{margin-bottom:4.5em}
 .block-label{
   font-size:var(--note-size);font-weight:600;letter-spacing:.2em;text-transform:uppercase;
-  color:var(--muted);margin-bottom:1.6em;padding-left:4px;
+  color:var(--muted);margin-bottom:0.6em;padding-left:4px;
   display:flex;align-items:center;gap:10px;
 }
 .block-label::before{content:'';display:block;width:24px;height:1px;background:var(--muted)}
 .block-label::after{content:'';flex:1;height:1px;background:var(--dim)}
 
 /* ── Line ── */
-.script-line{margin-bottom:1.8em;display:flex;flex-direction:column;gap:.3em}
+.script-line{margin-bottom:var(--line-spacing);display:flex;flex-direction:column;gap:.3em}
 
 .line-speaker{
   font-size:var(--speaker-size);
@@ -113,7 +114,7 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
   font-family:'Lora','Lora fallback',Georgia,serif;
   font-size:var(--font-size);
   line-height:1.32;
-  padding:14px 22px;
+  padding:8px 22px;
   border-radius:var(--radius);
   border-left:5px solid transparent;
 }
@@ -124,10 +125,11 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
   font-size:var(--note-size);
   font-style:italic;
   color:#6a6a6a;
-  padding:6px 22px;
+  padding:4px 22px;
   border-left:2px solid #2a2a2a;
   margin-left:4px;
 }
+.no-speakers .line-speaker{display:none!important}
 
 /* ── Empty / Waiting screen ── */
 #empty{
@@ -145,7 +147,7 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 #net-info{display:flex;flex-direction:column;align-items:center;gap:1px;margin-bottom:6px}
 .net-ips{margin:2px 0;font-size:15px;color:var(--accent);letter-spacing:.04em;text-align:center}
 .net-no-ip{color:#f87171;font-size:13px;letter-spacing:.06em}
-.qr-row{display:flex;gap:64px;justify-content:center;flex-wrap:wrap;margin-top:28px}
+.qr-row{display:flex;gap:64px;justify-content:center;flex-wrap:wrap;margin-top:28px;transition:opacity .35s ease}
 .qr-card{
   display:flex;flex-direction:column;align-items:center;gap:16px;
   background:rgba(255,255,255,.07);
@@ -225,7 +227,7 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 
 let COLORS=[], script=null, playing=false, speed=45, fontSize=56, speakerSize=22, noteSize=42;
-let stopAtBlockEnd=false, _stoppedBlocks=new Set();
+let stopAtBlockEnd=false, _stoppedBlocks=new Set(), _stopCooldown=false, showSpeakerNames=true;
 let myClientId=null, _rotDeg=0, _flipH=false, _flipV=false;
 let participantPhotos={};
 let scrollPx=0, rafId=null, lastTs=null;
@@ -267,7 +269,7 @@ function connectWS(){
       msg.script ? loadScript(msg.script) : renderEmpty();
       scrollPx=0; stopScroll(); applyScroll(); _stoppedBlocks.clear();
       break;
-    case "play":        playing=true;  flash(); startScroll(); break;
+    case "play":        playing=true;  flash(); startScroll(); _stopCooldown=true; setTimeout(()=>{_stopCooldown=false;},1500); break;
     case "pause":       playing=false; stopScroll(); break;
     case "reset":       playing=false; scrollPx=0; stopScroll(); applyScroll(); _stoppedBlocks.clear(); break;
     case "scroll_to":   smoothScrollTo(msg.px??scrollPx, 150); break;
@@ -403,6 +405,16 @@ function loadScript(sc){
       if(line.type==="note"){
         const n=document.createElement("div");
         n.className="line-note"; n.textContent=line.text; lineEl.appendChild(n);
+      } else if(line.type==="all"){
+        const sp=document.createElement("div");
+        sp.className="line-speaker";
+        sp.style.cssText=`background:#fbbf2428;color:#fbbf24;display:flex;align-items:center;gap:6px`;
+        sp.textContent="¡TODOS!";
+        lineEl.appendChild(sp);
+        const tx=document.createElement("div");
+        tx.className="line-text";
+        tx.style.cssText=`color:#fbbf24;border-left-color:#fbbf2455;background:#fbbf240d;`;
+        tx.textContent=line.text; lineEl.appendChild(tx);
       } else {
         const pidx=(sc.participants||[]).findIndex(p=>p.id===line.participantId);
         const p=(sc.participants||[])[pidx>=0?pidx:0];
@@ -453,6 +465,11 @@ function applyConfig(cfg){
     if(el) el.style.display=cfg.showServerIP?"":"none";
   }
   if(cfg.stopAtBlockEnd!=null) stopAtBlockEnd=cfg.stopAtBlockEnd;
+  if(cfg.lineSpacing!=null) root.style.setProperty("--line-spacing", cfg.lineSpacing+"em");
+  if(cfg.showSpeakerNames!=null){
+    showSpeakerNames=cfg.showSpeakerNames;
+    contentEl.classList.toggle("no-speakers", !showSpeakerNames);
+  }
 }
 
 function jumpToLine(bi, li){
@@ -574,7 +591,7 @@ function tick(ts){
   updateActiveLine();
   // Auto-stop al final de cada bloque o al final del guión completo
   const focusY = window.innerHeight*0.5+26;
-  if(stopAtBlockEnd){
+  if(stopAtBlockEnd && !_stopCooldown){
     const blocks = contentEl.querySelectorAll(".block");
     for(const block of blocks){
       const bi = parseInt(block.dataset.block);
@@ -612,7 +629,7 @@ function flash(){
   flashEl.classList.add("on"); setTimeout(()=>flashEl.classList.remove("on"),200);
 }
 
-// ── Network info / QR codes ────────────────────────────────────────────────
+// ── Network info / QR codes (rotativo) ────────────────────────────────────────
 (async () => {
   try {
     const info = await fetch("/api/network").then(r => r.json());
@@ -621,25 +638,48 @@ function flash(){
     const dateEl = document.getElementById("net-date");
     if (dateEl) dateEl.textContent = new Date().toLocaleDateString("es-ES",
       { weekday:"long", day:"numeric", month:"long", year:"numeric" });
-    if (!info.preferredIp) {
+
+    const allSets = info.allQrSets || [];
+    if (!allSets.length) {
       netEl.innerHTML = `<div class="net-no-ip">⚠ No se detectó IP de red local</div>`;
       return;
     }
-    const host = info.hostname || info.preferredIp;
-    const base = `${location.protocol}//${host}:${location.port||3000}`;
+
+    // Mostrar todas las IPs en el bloque de texto
     netEl.innerHTML = (info.allIps||[]).map(ip =>
       `<div class="net-ips">${location.protocol}//${ip}:${location.port||3000}</div>`
     ).join("") + (info.hostname
       ? `<div class="net-ips" style="color:var(--accent)">${location.protocol}//${info.hostname}:${location.port||3000}</div>`
       : "");
-    const cards = [
-      { svg: info.qrCodes.editor,        label: "EDITOR",                 url: base + "/" },
-      { svg: info.qrCodes.remote,        label: "Mando remoto",            url: base + "/remote.html" },
-      { svg: info.qrCodes.teleprompter,  label: "Teleprompter secundario", url: base + "/teleprompter.html" },
-    ];
-    qrEl.innerHTML = cards.map(c =>
-      `<div class="qr-card">${c.svg}<div class="qr-card-text"><div class="qr-label">${c.label}</div><div class="qr-url">${c.url}</div></div></div>`
-    ).join("");
+
+    function renderQrSet(set) {
+      const base = `${set.protocol}://${set.host}:${location.port||3000}`;
+      const cards = [
+        { svg: set.qrCodes.editor,       label: "EDITOR",                  url: base + "/" },
+        { svg: set.qrCodes.remote,       label: "Mando remoto",             url: base + "/remote.html" },
+        { svg: set.qrCodes.teleprompter, label: "Teleprompter secundario",  url: base + "/teleprompter.html" },
+      ];
+      qrEl.style.opacity = "0";
+      setTimeout(() => {
+        qrEl.innerHTML = cards.map(c =>
+          `<div class="qr-card">${c.svg}<div class="qr-card-text">
+            <div class="qr-label">${c.label}</div>
+            <div class="qr-url" style="color:rgba(255,255,255,.45);font-size:9px;letter-spacing:.04em">${set.host}</div>
+            <div class="qr-url">${c.url}</div>
+          </div></div>`
+        ).join("");
+        qrEl.style.opacity = "1";
+      }, 350);
+    }
+
+    let _qrIdx = 0;
+    renderQrSet(allSets[0]);
+    if (allSets.length > 1) {
+      setInterval(() => {
+        _qrIdx = (_qrIdx + 1) % allSets.length;
+        renderQrSet(allSets[_qrIdx]);
+      }, 10000);
+    }
   } catch(e) {}
 })();
 

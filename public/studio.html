@@ -531,6 +531,7 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 
     <div id="editor-toolbar">
       <div id="speaker-pills"></div>
+      <button class="btn btn-ghost btn-sm" onclick="exportPrint()" title="Imprimir / Exportar a PDF">📄</button>
       <button class="btn btn-ghost btn-sm" onclick="exportScript()" title="Exportar guion como fichero JSON">📤</button>
       <button class="btn btn-ghost btn-sm" onclick="saveScript()" title="Guardar guion">💾 Guardar</button>
       <button class="btn btn-accent btn-sm" onclick="publishScript()" title="Enviar al teleprónter">▶ Enviar</button>
@@ -750,7 +751,21 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
         </div>
 
         <div class="config-row">
+          <div class="config-header">
+            <span class="config-label">Separación entre líneas</span>
+            <span class="config-val" id="cfg-spacing-val">0.8 em</span>
+          </div>
+          <input type="range" id="cfg-spacing-range" min="0.2" max="2.0" step="0.1" value="0.8"
+                 oninput="onCfgSpacing(this.value)">
+          <div class="config-hint">Espacio vertical entre líneas del teleprónter.</div>
+        </div>
+
+        <div class="config-row">
           <div class="config-header"><span class="config-label">Pantalla Teleprónter</span></div>
+          <div class="toggle-row">
+            <span class="toggle-label">Mostrar nombre del locutor</span>
+            <button class="toggle on" id="cfg-show-speakers" onclick="onCfgShowSpeakers()"></button>
+          </div>
           <div class="toggle-row">
             <span class="toggle-label">Detener al final de cada bloque</span>
             <button class="toggle" id="toggle-stop-block" onclick="toggleStopAtBlockEnd(this)"></button>
@@ -874,7 +889,9 @@ let hideCursor         = false;
 let participantPhotos  = {};
 let showServerIP   = false;
 let stopAtBlockEnd = false;
-let noteSize     = 42; // percent relative to fontSize
+let noteSize       = 42; // percent relative to fontSize
+let lineSpacing    = 0.8;
+let showSpeakerNames = true;
 let emojiTarget  = null; // textarea activo para insertar emoji
 
 // clock
@@ -937,12 +954,15 @@ function connectWS() {
       fontSize = msg.playhead?.fontSize || 56;
       playing  = msg.playhead?.playing  || false;
       scrollPx = msg.playhead?.scrollPx || 0;
+      if (msg.config) applyConfigFromMsg(msg.config);
       applyClock(msg.clock);
       buildColorPicker();
       renderScriptsList();
       renderEditor();
       syncPlayUI();
       syncSliders();
+      // Auto-cargar último guión solo si el servidor no tiene ninguno activo
+      if (!msg.script && msg.lastScriptId) loadScript(msg.lastScriptId);
       break;
 
     case "scripts_list":
@@ -958,8 +978,12 @@ function connectWS() {
       break;
 
     case "script_loaded":
-      script = msg.script;
-      activeScriptId = msg.activeScriptId;
+      if (!dirty || msg.fromSave) {
+        script = msg.script;
+        activeScriptId = msg.activeScriptId;
+        dirty = false;
+        hideSaveBar();
+      }
       renderEditor();
       renderBlockNav();
       break;
@@ -1041,7 +1065,9 @@ function toggleNewScriptForm() {
 }
 
 function createScript() {
-  const title = document.getElementById("new-script-title").value.trim() || "Nuevo guion";
+  const titleInput = document.getElementById("new-script-title").value.trim();
+  const today = new Date().toLocaleDateString("es-ES", { day:"2-digit", month:"short", year:"numeric" });
+  const title = titleInput || `Guión ${today}`;
   script = {
     id: null,
     title,
@@ -1055,10 +1081,12 @@ function createScript() {
   document.getElementById("new-script-form").classList.remove("open");
   document.getElementById("new-script-title").value = "";
   renderEditor();
-  markDirty();
+  // Guardar de inmediato para que aparezca en la barra lateral
+  send({ type:"save_script", script });
 }
 
 function loadScript(id) {
+  if (dirty && !confirm("Tienes cambios sin guardar. ¿Descartar y cargar otro guión?")) return;
   send({ type:"load_script", id });
 }
 
@@ -1327,8 +1355,9 @@ function renderLineHTML(line, bi, li) {
   const p      = script.participants?.[pidx >= 0 ? pidx : 0];
   const color  = COLORS[p?.colorIdx ?? 0] || COLORS[0];
   const isNote = line.type === "note";
-  const dotColor = isNote ? "var(--orange)" : color.bg;
-  const photo = !isNote && p ? participantPhotos[p.id] : null;
+  const isAll  = line.type === "all";
+  const dotColor = isNote ? "var(--orange)" : isAll ? "#fbbf24" : color.bg;
+  const photo = !isNote && !isAll && p ? participantPhotos[p.id] : null;
   const dotStyle = photo
     ? `background:${dotColor};background-image:url('${photo}');background-size:cover;background-position:center;border:2px solid ${dotColor}`
     : `background:${dotColor}`;
@@ -1465,10 +1494,15 @@ function openSpeakerPicker(bi, li, e) {
   const line = script.blocks[bi].lines[li];
   const currentId = line.participantId;
   const isNote = line.type === "note";
+  const isAll = line.type === "all";
   picker.innerHTML =
     `<div class="sp-pick-item ${isNote?"sp-pick-active":""}" onclick="pickSpeaker('__note__')">
        <div class="sp-pick-dot" style="background:var(--orange)"></div>
        <span>📝 Nota</span>
+     </div>
+     <div class="sp-pick-item ${isAll?"sp-pick-active":""}" onclick="pickSpeaker('__all__')">
+       <div class="sp-pick-dot" style="background:#fbbf24"></div>
+       <span>⭐ ¡TODOS!</span>
      </div>` +
     (script.participants || []).map((p, i) => {
       const color = COLORS[p.colorIdx ?? i] || COLORS[0];
@@ -1494,6 +1528,9 @@ function pickSpeaker(participantId) {
   snapshot();
   if (participantId === "__note__") {
     script.blocks[bi].lines[li].type = "note";
+    script.blocks[bi].lines[li].participantId = null;
+  } else if (participantId === "__all__") {
+    script.blocks[bi].lines[li].type = "all";
     script.blocks[bi].lines[li].participantId = null;
   } else {
     script.blocks[bi].lines[li].type = "line";
@@ -1762,6 +1799,51 @@ async function exportScriptById(id) {
   } catch { toast("No se pudo exportar el guión"); }
 }
 
+function exportPrint() {
+  if (!script) { toast("No hay guión activo"); return; }
+  const w = window.open("", "_blank");
+  if (!w) { toast("Permite ventanas emergentes para imprimir"); return; }
+  w.document.write(buildPrintHTML(script));
+  w.document.close();
+  w.onload = () => w.print();
+}
+
+function buildPrintHTML(sc) {
+  const date = new Date().toLocaleDateString("es-ES", {weekday:"long", day:"numeric", month:"long", year:"numeric"});
+  const partsHtml = (sc.participants||[]).map((p, i) => {
+    const color = COLORS[p.colorIdx ?? i] || COLORS[0];
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${color.bg};color:${color.text};font-size:12px;font-weight:600;margin:0 4px 4px 0">${esc(p.name)}</span>`;
+  }).join("");
+  const blocksHtml = (sc.blocks||[]).map((block, bi) => {
+    const linesHtml = (block.lines||[]).map(line => {
+      if (line.type === "note") {
+        return `<div style="font-style:italic;color:#666;font-size:13px;margin-bottom:10px;border-left:2px solid #ddd;padding-left:10px">${esc(line.text)}</div>`;
+      }
+      if (line.type === "all") {
+        return `<div style="margin-bottom:14px"><span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:4px;background:#fef3c7;color:#92400e;margin-bottom:4px">¡TODOS!</span><div style="font-size:18px;line-height:1.5">${esc(line.text)}</div></div>`;
+      }
+      const pidx = (sc.participants||[]).findIndex(p => p.id === line.participantId);
+      const p    = (sc.participants||[])[pidx >= 0 ? pidx : 0];
+      const color = COLORS[p?.colorIdx ?? 0] || COLORS[0];
+      const spHtml = p ? `<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:4px;background:${color.bg};color:${color.text};margin-bottom:4px">${esc(p.name)}</span>` : "";
+      return `<div style="margin-bottom:14px">${spHtml}<div style="font-size:18px;line-height:1.5">${esc(line.text)}</div></div>`;
+    }).join("");
+    const blockTitle = esc(block.title || `Bloque ${bi+1}`) + (block.time ? ` · ${esc(block.time)}` : "");
+    return `<div style="margin-bottom:32px;page-break-inside:avoid">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#888;border-bottom:1px solid #ddd;padding-bottom:6px;margin-bottom:14px">${blockTitle}</div>
+      ${linesHtml}
+    </div>`;
+  }).join("");
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${esc(sc.title||"Guión")}</title>
+<style>body{font-family:Georgia,serif;color:#111;background:#fff;max-width:800px;margin:0 auto;padding:32px 48px}@media print{body{padding:16px 24px}}</style>
+</head><body>
+<h1 style="font-size:24px;margin-bottom:4px">${esc(sc.title||"Guión")}</h1>
+<div style="font-size:12px;color:#666;margin-bottom:8px">${date}</div>
+<div style="margin-bottom:24px">${partsHtml}</div>
+${blocksHtml}
+</body></html>`;
+}
+
 function importScript() {
   document.getElementById("import-file-input").click();
 }
@@ -1860,8 +1942,12 @@ function syncConfigTab() {
   document.getElementById("cfg-note-range").value        = noteSize;
   document.getElementById("cfg-speed-val").textContent   = speed;
   document.getElementById("cfg-speed-range").value       = speed;
-  document.getElementById("cfg-width-val").textContent   = contentWidth + " %";
-  document.getElementById("cfg-width-range").value       = contentWidth;
+  document.getElementById("cfg-width-val").textContent    = contentWidth + " %";
+  document.getElementById("cfg-width-range").value        = contentWidth;
+  document.getElementById("cfg-spacing-val").textContent  = lineSpacing.toFixed(1) + " em";
+  document.getElementById("cfg-spacing-range").value      = lineSpacing;
+  const spEl = document.getElementById("cfg-show-speakers");
+  if (spEl) spEl.classList.toggle("on", showSpeakerNames);
   updateConfigPreview();
 }
 
@@ -1880,6 +1966,8 @@ function applyConfigFromMsg(cfg) {
   if (cfg.hideCursor   != null) { hideCursor   = cfg.hideCursor;   const el=document.getElementById("cfg-hide-cursor"); if(el) el.classList.toggle("on", hideCursor); }
   if (cfg.showServerIP != null) { showServerIP = cfg.showServerIP; const el=document.getElementById("cfg-show-ip"); if(el) el.classList.toggle("on", showServerIP); }
   if (cfg.stopAtBlockEnd != null) { stopAtBlockEnd = cfg.stopAtBlockEnd; const el=document.getElementById("toggle-stop-block"); if(el) el.classList.toggle("on", stopAtBlockEnd); }
+  if (cfg.lineSpacing    != null) { lineSpacing    = cfg.lineSpacing;    const el=document.getElementById("cfg-spacing-range"); if(el){ el.value=lineSpacing; document.getElementById("cfg-spacing-val").textContent=lineSpacing.toFixed(1)+" em"; } }
+  if (cfg.showSpeakerNames != null) { showSpeakerNames = cfg.showSpeakerNames; const el=document.getElementById("cfg-show-speakers"); if(el) el.classList.toggle("on", showSpeakerNames); }
   syncConfigTab();
 }
 
@@ -1909,6 +1997,17 @@ function onCfgNote(v) {
 function onCfgHideCursor()      { hideCursor = !hideCursor; document.getElementById("cfg-hide-cursor").classList.toggle("on", hideCursor); sendConfig(); }
 function onCfgShowIP()          { showServerIP = !showServerIP; document.getElementById("cfg-show-ip").classList.toggle("on", showServerIP); sendConfig(); }
 function toggleStopAtBlockEnd(btn) { stopAtBlockEnd = !stopAtBlockEnd; btn.classList.toggle("on", stopAtBlockEnd); sendConfig(); }
+function onCfgSpacing(v) {
+  lineSpacing = parseFloat(v);
+  document.getElementById("cfg-spacing-val").textContent = lineSpacing.toFixed(1) + " em";
+  clearTimeout(cfgSpT);
+  cfgSpT = setTimeout(() => sendConfig(), 80);
+}
+function onCfgShowSpeakers() {
+  showSpeakerNames = !showSpeakerNames;
+  document.getElementById("cfg-show-speakers").classList.toggle("on", showSpeakerNames);
+  sendConfig();
+}
 function saveConfig()  { send({ type:"save_config" }); }
 function resetConfig() { send({ type:"reset_config" }); }
 function onCfgWidth(v) {
@@ -1926,7 +2025,7 @@ function onCfgSpeed(v) {
   cfgSpT = setTimeout(() => send({type:"set_speed", value:speed}), 80);
 }
 function sendConfig() {
-  send({ type:"set_config", config:{ speakerSize, noteSize, contentWidth, hideCursor, showServerIP, stopAtBlockEnd } });
+  send({ type:"set_config", config:{ speakerSize, noteSize, contentWidth, hideCursor, showServerIP, stopAtBlockEnd, lineSpacing, showSpeakerNames } });
 }
 
 function switchRTab(name, btn) {
