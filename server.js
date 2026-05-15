@@ -185,7 +185,8 @@ const server = http.createServer((req, res) => {
   if (urlPath === "/api/restart") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
-    setTimeout(() => process.exit(0), 300);
+    broadcastAll({ type: "reload" });
+    setTimeout(() => process.exit(0), 600);
     return;
   }
 

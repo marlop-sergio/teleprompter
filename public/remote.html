@@ -254,6 +254,13 @@ document.addEventListener("touchend", e => {
 }, {passive:false});
 
 // ── Login ──────────────────────────────────────────────────────────────────
+const _savedName = localStorage.getItem("tp_remote_name") || "";
+if(_savedName){
+  document.getElementById("name-input").value = _savedName;
+  // auto-connect sin esperar a que el usuario pulse el botón
+  setTimeout(() => { myName = _savedName; connectWS(); }, 0);
+}
+
 document.getElementById("name-input").addEventListener("keydown", e=>{
   if(e.key==="Enter") joinSession();
 });
@@ -261,7 +268,9 @@ document.getElementById("name-input").addEventListener("keydown", e=>{
 function joinSession(){
   const name=document.getElementById("name-input").value.trim();
   if(!name){toast("Escribe tu nombre");return;}
-  myName=name; connectWS();
+  myName=name;
+  localStorage.setItem("tp_remote_name", myName);
+  connectWS();
 }
 
 // ── WS ─────────────────────────────────────────────────────────────────────
@@ -297,6 +306,7 @@ function connectWS(){
       case "scroll_to":   scrollPx=msg.px??scrollPx; updateThumb(); break;
       case "sync_scroll": scrollPx=msg.px; updateThumb(); break;
       case "jump_block":  activeBlock=msg.index; renderBlockChips(); break;
+      case "reload":      setTimeout(() => location.reload(), 3000); break;
     }
   };
 }
@@ -313,6 +323,8 @@ function showControls(){
   const tag=document.getElementById("user-tag");
   tag.style.background=color.bg+"18"; tag.style.color=color.bg;
   tag.innerHTML=`<span class="dot" style="background:${color.bg}"></span>${myName}`;
+  tag.title="Toca para cambiar nombre";
+  tag.onclick=()=>{ localStorage.removeItem("tp_remote_name"); location.reload(); };
 }
 
 // ── Blocks ─────────────────────────────────────────────────────────────────

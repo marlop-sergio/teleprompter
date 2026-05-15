@@ -944,6 +944,7 @@ function connectWS() {
     case "timer_reset":   timerStart = null; timerElapsed = 0; timerRunning = false; updateTimerBtn(); break;
     case "set_config":    applyConfigFromMsg(msg.config); syncConfigTab(); break;
     case "config_saved":  toast(msg.reset ? "Config restablecida ✓" : "Config guardada como predeterminada ✓"); break;
+    case "reload":        toast("Actualizando servidor… recargando en 3s"); setTimeout(() => location.reload(), 3000); break;
   }
   };
 }

@@ -272,6 +272,9 @@ function connectWS(){
           script.blocks[msg.blockIndex].lines[msg.lineIndex].text=msg.text;
       }
       break;
+    case "reload":
+      setTimeout(() => location.reload(), 3000);
+      break;
     }
   }
   };
