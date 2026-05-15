@@ -587,7 +587,20 @@ function tick(ts){
   if(!lastTs) lastTs=ts;
   const dt=(ts-lastTs)/1000; lastTs=ts;
   // Si hay un salto animado en curso, no avanzar el scroll automático para no pisar
-  if(!_smoothRaf){ scrollPx+=speed*dt; applyScroll(); }
+  if(!_smoothRaf){
+    // Avance rápido cuando el foco está sobre una nota o título de bloque
+    let fastMode = false;
+    if(lastActiveLine && lastActiveLine.querySelector('.line-note')) fastMode=true;
+    if(!fastMode){
+      const fy=window.innerHeight*0.5+26;
+      for(const lbl of contentEl.querySelectorAll('.block-label')){
+        const r=lbl.getBoundingClientRect();
+        if(r.bottom>=fy-60 && r.top<=fy+60){fastMode=true;break;}
+      }
+    }
+    scrollPx+=speed*(fastMode?3.5:1)*dt;
+    applyScroll();
+  }
   updateActiveLine();
   // Auto-stop al final de cada bloque o al final del guión completo
   const focusY = window.innerHeight*0.5+26;
