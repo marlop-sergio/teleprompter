@@ -139,8 +139,8 @@ input::placeholder{color:var(--muted)}
 .block-chip.active{background:rgba(124,159,255,.12);border-color:var(--accent);color:var(--accent)}
 
 /* Participant photos */
-.photo-row{display:flex;align-items:center;gap:12px;background:var(--s2);
-  border-radius:12px;padding:10px 12px;border:1px solid var(--border)}
+.photo-row{display:flex;align-items:center;gap:12px;
+  border-radius:12px;padding:10px 12px;border:1px solid transparent}
 .photo-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;
   background:var(--s3);border:2px solid var(--border)}
 .photo-avatar.placeholder{display:flex;align-items:center;justify-content:center;
@@ -495,9 +495,10 @@ function renderPhotoSection(script){
       : `<div class="photo-avatar placeholder" id="pav-${p.id}" style="background:${color.bg}22;color:${color.bg}">
            ${esc(p.name).charAt(0).toUpperCase()}</div>`;
     const hasPhoto = !!photo;
-    return `<div class="photo-row" data-pid="${p.id}">
+    return `<div class="photo-row" data-pid="${p.id}"
+      style="background:${color.bg}18;border-color:${color.bg}40">
       ${avatarHtml}
-      <span class="photo-name">${esc(p.name)}</span>
+      <span class="photo-name" style="color:${color.bg}">${esc(p.name)}</span>
       ${hasPhoto ? `<button class="photo-btn" onclick="deletePhoto('${p.id}')" title="Borrar foto">✕</button>` : ""}
       <label class="photo-btn">
         📷
