@@ -433,6 +433,7 @@ function handleMessage(ws, msg) {
 
     case "sync_scroll":
       state.playhead.scrollPx = msg.px;
+      broadcast({ type: "sync_scroll", px: msg.px }, ["studio"], ws);
       break;
 
     case "set_speed":
