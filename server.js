@@ -3,6 +3,7 @@
 // https://github.com/marlop-sergio/teleprompter
 
 const http   = require("http");
+const https  = require("https");
 const fs     = require("fs");
 const path   = require("path");
 const { exec } = require("child_process");
@@ -15,6 +16,19 @@ const { version: VERSION } = require("./package.json");
 const PORT = 3000;
 const SCRIPTS_DIR = path.join(__dirname, "scripts");
 const SCRIPTS_DIR_NORMALIZED = SCRIPTS_DIR + path.sep;
+
+// ── TLS opcional ──────────────────────────────────────────────────────────────
+// Coloca cert.pem y key.pem en la raíz del proyecto para activar HTTPS.
+// Sin ellos el servidor arranca en HTTP (modo de desarrollo).
+let TLS = null;
+try {
+  const cert = fs.readFileSync(path.join(__dirname, "cert.pem"));
+  const key  = fs.readFileSync(path.join(__dirname, "key.pem"));
+  TLS = { cert, key };
+} catch { /* sin certificado → HTTP */ }
+
+const PROTOCOL  = TLS ? "https" : "http";
+const LOCAL_HOST = TLS ? `${os.hostname().toLowerCase()}.local` : null;
 
 function safePath(id) {
   if (!/^[\w\-]+\.json$/.test(id)) throw new Error("id inválido");
@@ -131,19 +145,21 @@ function getNetworkIPs() {
 
 async function buildNetworkInfo() {
   const { all, preferred } = getNetworkIPs();
-  if (!preferred) return { allIps: all, preferredIp: null, qrCodes: null };
-  const base = `http://${preferred}:${PORT}`;
+  // En modo HTTPS los QR usan el hostname .local (el cert es para el hostname, no la IP)
+  const qrHost = LOCAL_HOST || preferred;
+  if (!qrHost) return { allIps: all, preferredIp: preferred, qrCodes: null };
+  const base = `${PROTOCOL}://${qrHost}:${PORT}`;
   const opts = { type: "svg", margin: 2, color: { dark: "#111111", light: "#ffffff" }, width: 220 };
   const [editor, remote, teleprompter] = await Promise.all([
     QRCode.toString(base + "/",                  opts),
     QRCode.toString(base + "/remote.html",       opts),
     QRCode.toString(base + "/teleprompter.html", opts),
   ]);
-  return { version: VERSION, allIps: all, preferredIp: preferred, qrCodes: { editor, remote, teleprompter } };
+  return { version: VERSION, allIps: all, preferredIp: preferred, hostname: LOCAL_HOST, qrCodes: { editor, remote, teleprompter } };
 }
 
-// ── Servidor HTTP ─────────────────────────────────────────────────────────────
-const server = http.createServer((req, res) => {
+// ── Servidor HTTP/HTTPS ───────────────────────────────────────────────────────
+const requestHandler = (req, res) => {
   let urlPath = req.url.split("?")[0];
   if (urlPath === "/") urlPath = "/studio.html";
 
@@ -212,7 +228,11 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { "Content-Type": MIME[ext] || "text/plain" });
     res.end(data);
   });
-});
+};
+
+const server = TLS
+  ? https.createServer(TLS, requestHandler)
+  : http.createServer(requestHandler);
 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 const wss = new WebSocketServer({ server });
@@ -465,12 +485,21 @@ server.listen(PORT, "0.0.0.0", () => {
       if (addr.family === "IPv4" && !addr.internal) ips.push(addr.address);
     }
   }
-  console.log("\n🎙️  Teleprónter PRO arrancado");
-  console.log(`\n   🎛️  ESTUDIO (principal)  →  http://localhost:${PORT}`);
-  ips.forEach(ip => {
-    console.log(`\n   📱 Mando (móvil)        →  http://${ip}:${PORT}/remote.html`);
-    console.log(`   📺 Teleprónter (cast)   →  http://${ip}:${PORT}/teleprompter.html`);
-    console.log(`   🎛️  Estudio (red local)  →  http://${ip}:${PORT}`);
-  });
+  const proto = PROTOCOL;
+  const netHost = LOCAL_HOST || (ips[0] || "localhost");
+  console.log("\n🎙️  Teleprónter PRO arrancado" + (TLS ? " [HTTPS]" : ""));
+  console.log(`\n   🎛️  ESTUDIO (principal)  →  ${proto}://localhost:${PORT}`);
+  if (LOCAL_HOST) {
+    console.log(`\n   🔒 Modo HTTPS activo — hostname: ${LOCAL_HOST}`);
+    console.log(`\n   📱 Mando (móvil)        →  ${proto}://${LOCAL_HOST}:${PORT}/remote.html`);
+    console.log(`   📺 Teleprónter (cast)   →  ${proto}://${LOCAL_HOST}:${PORT}/teleprompter.html`);
+    console.log(`   🎛️  Estudio (red local)  →  ${proto}://${LOCAL_HOST}:${PORT}`);
+  } else {
+    ips.forEach(ip => {
+      console.log(`\n   📱 Mando (móvil)        →  ${proto}://${ip}:${PORT}/remote.html`);
+      console.log(`   📺 Teleprónter (cast)   →  ${proto}://${ip}:${PORT}/teleprompter.html`);
+      console.log(`   🎛️  Estudio (red local)  →  ${proto}://${ip}:${PORT}`);
+    });
+  }
   console.log("\n   Ctrl+C para detener\n");
 });

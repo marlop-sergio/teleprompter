@@ -6,6 +6,7 @@ public/fonts/fonts.css
 scripts/*.json
 *.log
 security_review_*.md
+*.pem
 .DS_Store
 Thumbs.db
 .vscode/

@@ -124,6 +124,57 @@ ofrece reiniciar con un clic.
 
 ---
 
+## HTTPS (opcional, recomendado en producción)
+
+HTTPS es necesario para que el **acceso a la cámara del móvil** funcione
+y para evitar que los navegadores modernos bloqueen la conexión en redes locales.
+
+El servidor arranca en HTTP por defecto. Para activar HTTPS basta con colocar
+`cert.pem` y `key.pem` en la raíz del proyecto — el servidor los detecta
+automáticamente al arrancar.
+
+### Generar un certificado autofirmado (una sola vez)
+
+Ejecuta esto en el servidor (Ubuntu/NUC). Sustituye `alikat` por el hostname
+real de tu máquina (`hostname` para consultarlo):
+
+```bash
+cd ~/tp2
+openssl req -x509 -newkey rsa:2048 \
+  -keyout key.pem -out cert.pem \
+  -days 3650 -nodes \
+  -subj "/CN=$(hostname).local" \
+  -addext "subjectAltName=DNS:$(hostname).local"
+```
+
+Reinicia el servidor:
+
+```bash
+pm2 restart teleprompter
+```
+
+El log de arranque confirmará `[HTTPS]` y mostrará la URL con el hostname `.local`.
+
+### Aceptar el certificado en cada dispositivo
+
+La primera vez que un dispositivo abre la URL `https://alikat.local:3000`
+(sustituye `alikat` por tu hostname), el navegador mostrará un aviso de
+seguridad. Acepta la excepción — no volverá a aparecer en ese dispositivo.
+
+En **iOS Safari**: toca _Mostrar detalles_ → _Visitar este sitio web_ → _Visitar_.  
+En **Android Chrome**: toca _Avanzado_ → _Acceder a alikat.local (sitio no seguro)_.  
+En **macOS/Windows**: haz clic en _Avanzado_ → _Continuar_.
+
+### Nota sobre la IP dinámica
+
+El certificado se genera para el **hostname** (p. ej. `alikat.local`), no para
+la IP. Funciona aunque la IP del servidor cambie, siempre que el hostname
+sea accesible vía mDNS (estándar en redes locales — funciona sin DNS).
+
+Los archivos `cert.pem` y `key.pem` están excluidos del repositorio (`.gitignore`).
+
+---
+
 ## Sin internet
 
 Todo funciona en Wi-Fi local. Las fuentes se descargan una sola vez durante
