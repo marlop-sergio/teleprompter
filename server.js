@@ -317,9 +317,10 @@ function handleMessage(ws, msg) {
 
     // ── Fotos de participantes ────────────────────────────────────────────────
     case "set_participant_photo": {
-      if (msg.participantId && msg.photo) {
-        state.participantPhotos[msg.participantId] = msg.photo;
-        broadcastAll({ type: "participant_photo", participantId: msg.participantId, photo: msg.photo });
+      if (msg.participantId) {
+        if (msg.photo) state.participantPhotos[msg.participantId] = msg.photo;
+        else           delete state.participantPhotos[msg.participantId];
+        broadcastAll({ type: "participant_photo", participantId: msg.participantId, photo: msg.photo || null });
       }
       break;
     }

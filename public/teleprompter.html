@@ -283,7 +283,8 @@ function connectWS(){
       break;
     }
     case "participant_photo":
-      participantPhotos[msg.participantId] = msg.photo;
+      if(msg.photo) participantPhotos[msg.participantId] = msg.photo;
+      else delete participantPhotos[msg.participantId];
       renderHUDParticipants(script?.participants||[]);
       break;
     case "reload":
@@ -308,7 +309,22 @@ function applyDisplayTransform(){
   if(_rotDeg) parts.push(`rotate(${_rotDeg}deg)`);
   if(_flipH)  parts.push(`scaleX(-1)`);
   if(_flipV)  parts.push(`scaleY(-1)`);
-  document.body.style.transform = parts.join(' ');
+  document.body.style.transform = parts.join(' ') || '';
+
+  const sideways = _rotDeg === 90 || _rotDeg === 270;
+  if(sideways){
+    document.body.style.position = 'fixed';
+    document.body.style.width    = '100vh';
+    document.body.style.height   = '100vw';
+    document.body.style.top      = 'calc((100vh - 100vw) / 2)';
+    document.body.style.left     = 'calc((100vw - 100vh) / 2)';
+  } else {
+    document.body.style.position = '';
+    document.body.style.width    = '';
+    document.body.style.height   = '';
+    document.body.style.top      = '';
+    document.body.style.left     = '';
+  }
 }
 
 function playBeep(){

@@ -322,10 +322,10 @@ function connectWS(){
         scrollPx=msg.playhead?.scrollPx||0;
         syncPlayBtn(); syncSlider(speed); updateThumb();
         if(msg.participantPhotos) _remotePhotos=msg.participantPhotos;
-        if(msg.script){ renderBlocks(msg.script); renderPhotoSection(msg.script); }
+        if(msg.script){ _remoteScript=msg.script; renderBlocks(msg.script); renderPhotoSection(msg.script); }
         break;
       case "script_loaded":
-        if(msg.script){ renderBlocks(msg.script); renderPhotoSection(msg.script); }
+        if(msg.script){ _remoteScript=msg.script; renderBlocks(msg.script); renderPhotoSection(msg.script); }
         break;
       case "participant_photo":
         _remotePhotos[msg.participantId]=msg.photo;
@@ -490,12 +490,14 @@ function renderPhotoSection(script){
       ? `<img class="photo-avatar" id="pav-${p.id}" src="${photo}" alt="${esc(p.name)}">`
       : `<div class="photo-avatar placeholder" id="pav-${p.id}" style="background:${color.bg}22;color:${color.bg}">
            ${esc(p.name).charAt(0).toUpperCase()}</div>`;
+    const hasPhoto = !!photo;
     return `<div class="photo-row" data-pid="${p.id}">
       ${avatarHtml}
       <span class="photo-name">${esc(p.name)}</span>
+      ${hasPhoto ? `<button class="photo-btn" onclick="deletePhoto('${p.id}')" title="Borrar foto">✕</button>` : ""}
       <label class="photo-btn">
         📷
-        <input type="file" accept="image/*" capture="user" style="display:none"
+        <input type="file" accept="image/*" style="display:none"
                onchange="handlePhotoFile(this,'${p.id}')">
       </label>
     </div>`;
@@ -517,6 +519,13 @@ function handlePhotoFile(input, participantId){
   reader.onload = e => compressAndSend(e.target.result, participantId);
   reader.readAsDataURL(file);
   input.value="";
+}
+
+function deletePhoto(participantId){
+  delete _remotePhotos[participantId];
+  ws?.readyState===1 && ws.send(JSON.stringify({type:"set_participant_photo", participantId, photo:null}));
+  if(_remoteScript) renderPhotoSection(_remoteScript);
+  toast("Foto eliminada");
 }
 
 function compressAndSend(dataUrl, participantId){

@@ -275,7 +275,7 @@ input[type=range]::-moz-range-thumb{
   margin-bottom:5px;transition:all .12s;display:flex;align-items:center;gap:8px;
 }
 .block-nav-btn:hover{background:var(--s2);color:var(--text);border-color:var(--border2)}
-.block-nav-btn.active{background:rgba(124,159,255,.1);border-color:var(--accent);color:var(--accent)}
+.block-nav-btn.active{background:rgba(94,234,212,.1);border-color:var(--green);color:var(--green)}
 .block-nav-num{
   width:20px;height:20px;border-radius:4px;background:var(--s3);
   display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;
@@ -391,7 +391,9 @@ input[type=range]::-moz-range-thumb{
 
 /* ── Active block highlight ── */
 .block-editor.block-active{border-color:rgba(94,234,212,.5);box-shadow:0 0 0 1px rgba(94,234,212,.2)}
-.block-editor.block-active .block-head{background:rgba(94,234,212,.06)}
+.block-editor.block-active .block-head{background:rgba(94,234,212,.08)}
+.block-editor.block-active .block-head input{color:var(--green)}
+.block-editor.block-active .line-editor{background:rgba(94,234,212,.03)}
 
 /* ── Emoji picker ── */
 #emoji-picker{
@@ -992,8 +994,9 @@ function connectWS() {
     case "set_config":    applyConfigFromMsg(msg.config); syncConfigTab(); break;
     case "config_saved":  toast(msg.reset ? "Config restablecida ✓" : "Config guardada como predeterminada ✓"); break;
     case "participant_photo":
-      participantPhotos[msg.participantId] = msg.photo;
-      renderBlocks(); // actualiza dots con foto
+      if(msg.photo) participantPhotos[msg.participantId] = msg.photo;
+      else delete participantPhotos[msg.participantId];
+      renderBlocks();
       break;
     case "reload":        toast("Actualizando servidor… recargando en 3s"); setTimeout(() => location.reload(), 3000); break;
   }

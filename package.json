@@ -1,6 +1,6 @@
 {
   "name": "teleprompter-pro",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "Sistema profesional de teleprónter con reconocimiento de voz, control remoto y gestión de guiones multiparticipante.",
   "main": "server.js",
   "license": "AGPL-3.0-or-later",
