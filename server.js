@@ -453,8 +453,10 @@ function handleMessage(ws, msg) {
 
     // ── Sync línea activa (teleprompter → studio) ─────────────────────────────
     case "sync_line":
-      broadcast({ type: "sync_line", blockIndex: msg.blockIndex, lineIndex: msg.lineIndex },
-        ["studio"], ws);
+      state.playhead.blockIndex = msg.blockIndex;
+      state.playhead.lineIndex  = msg.lineIndex;
+      broadcast({ type: "sync_line", blockIndex: msg.blockIndex, lineIndex: msg.lineIndex, senderId: info.clientId },
+        ["studio", "teleprompter"], ws);
       break;
 
     // ── Patch line (live edit sin resetear scroll) ───────────────────────────
