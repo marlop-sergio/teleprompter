@@ -61,7 +61,7 @@ const PASTEL_COLORS = [
 ];
 
 // ── Config persistente ────────────────────────────────────────────────────────
-const CONFIG_FILE = path.join(__dirname, "config.json");
+const CONFIG_FILE  = path.join(__dirname, "config.json");
 const DEFAULT_CONFIG = {
   speakerSize: 22, noteSize: 42, contentWidth: 80,
   hideCursor: false, showServerIP: false, stopAtBlockEnd: false,
@@ -73,6 +73,13 @@ function loadSavedConfig() {
 }
 function persistConfig(cfg) {
   try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2)); } catch {}
+}
+function photosFromScript(script) {
+  const out = {};
+  for (const p of (script?.participants || [])) {
+    if (p.photo) out[p.id] = p.photo;
+  }
+  return out;
 }
 
 // ── Estado global ─────────────────────────────────────────────────────────────
@@ -97,7 +104,7 @@ const state = {
     timerStart:    null,
   },
   clients: new Map(),       // ws → {role, id, name}
-  participantPhotos: {},    // participantId → dataURL (memoria de sesión)
+  participantPhotos: {},    // participantId → dataURL (derivado del script activo)
 };
 
 // ── Utilidades de scripts ─────────────────────────────────────────────────────
@@ -317,10 +324,15 @@ function handleMessage(ws, msg) {
 
     // ── Fotos de participantes ────────────────────────────────────────────────
     case "set_participant_photo": {
-      if (msg.participantId) {
-        if (msg.photo) state.participantPhotos[msg.participantId] = msg.photo;
-        else           delete state.participantPhotos[msg.participantId];
-        broadcastAll({ type: "participant_photo", participantId: msg.participantId, photo: msg.photo || null });
+      if (msg.participantId && state.script) {
+        const p = (state.script.participants || []).find(p => p.id === msg.participantId);
+        if (p) {
+          if (msg.photo) p.photo = msg.photo;
+          else           delete p.photo;
+          state.participantPhotos = photosFromScript(state.script);
+          saveScript(state.script); // persiste la foto en el JSON del guión
+          broadcastAll({ type: "participant_photo", participantId: msg.participantId, photo: msg.photo || null });
+        }
       }
       break;
     }
@@ -364,6 +376,7 @@ function handleMessage(ws, msg) {
       if (!sc) break;
       state.script = sc;
       state.activeScriptId = msg.id;
+      state.participantPhotos = photosFromScript(sc);
       state.playhead.blockIndex = 0;
       state.playhead.lineIndex  = 0;
       state.playhead.scrollPx   = 0;
