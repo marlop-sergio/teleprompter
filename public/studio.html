@@ -1,0 +1,2085 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Estudio · Teleprónter PRO</title>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+/* local fonts loaded via <link> */
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0c0f;--s1:#111318;--s2:#181b22;--s3:#1e2229;
+  --border:#252830;--border2:#2e333d;
+  --muted:#55606e;--dim:#3a404c;
+  --text:#dde1ea;--text2:#8a94a6;
+  --accent:#7c9fff;--green:#5eead4;--red:#fb7185;--orange:#fbbf24;
+  --radius:12px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Figtree',system-ui,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+body{display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Top bar ── */
+#topbar{
+  height:50px;background:var(--s1);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;
+}
+#topbar h1{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2)}
+.conn-badge{
+  display:flex;align-items:center;gap:5px;padding:4px 10px;
+  border-radius:20px;background:var(--s2);font-size:11px;color:var(--text2);
+}
+.conn-badge .dot{width:6px;height:6px;border-radius:50%;background:#333}
+.conn-badge .dot.live{background:var(--green);box-shadow:0 0 5px var(--green)}
+#clients-bar{display:flex;gap:6px;margin-left:8px;flex-wrap:wrap}
+.client-pill{
+  padding:3px 9px;border-radius:12px;font-size:10px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;background:var(--s2);color:var(--text2);
+}
+
+/* ── Layout ── */
+#workspace{
+  flex:1;display:grid;overflow:hidden;
+  grid-template-columns:280px 1fr 300px;
+  grid-template-rows:1fr;
+}
+
+/* ── Panel base ── */
+.panel{
+  border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;
+}
+.panel:last-child{border-right:none;border-left:1px solid var(--border)}
+.panel-head{
+  padding:14px 16px 10px;border-bottom:1px solid var(--border);
+  font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:8px 14px;border-radius:8px;border:none;font-family:'Figtree',system-ui,sans-serif;
+  font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;
+  -webkit-tap-highlight-color:transparent;letter-spacing:.02em;
+}
+.btn:active{transform:scale(.96)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{background:var(--s2);color:var(--text)}
+.btn-accent{background:var(--accent);color:#0b0c0f}
+.btn-accent:hover{opacity:.88}
+.btn-green{background:rgba(94,234,212,.15);color:var(--green);border:1px solid rgba(94,234,212,.25)}
+.btn-green:hover{background:rgba(94,234,212,.22)}
+.btn-red{background:rgba(251,113,133,.12);color:var(--red);border:1px solid rgba(251,113,133,.22)}
+.btn-red:hover{background:rgba(251,113,133,.2)}
+.btn-sm{padding:5px 10px;font-size:11px;border-radius:6px}
+.btn-icon{width:30px;height:30px;padding:0;border-radius:6px}
+.btn-full{width:100%}
+
+/* ── Input base ── */
+input[type=text],input[type=number],textarea,select{
+  background:var(--s2);border:1.5px solid var(--border);border-radius:8px;
+  padding:9px 11px;font-family:'Figtree',system-ui,sans-serif;font-size:13px;color:var(--text);
+  outline:none;width:100%;transition:border-color .2s;
+}
+input[type=text]:focus,input[type=number]:focus,textarea:focus,select:focus{border-color:var(--accent)}
+input::placeholder,textarea::placeholder{color:var(--muted)}
+select option{background:var(--s2)}
+
+/* ═══════════════════════════════════════════════════════
+   LEFT PANEL – Script library + participants
+═══════════════════════════════════════════════════════ */
+#panel-left{grid-column:1}
+
+/* Scripts list */
+.script-item{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background .12s;
+}
+.script-item:hover{background:var(--s2)}
+.script-item.active{background:rgba(124,159,255,.08);border-left:3px solid var(--accent)}
+.script-item:not(.active){border-left:3px solid transparent}
+.script-name{flex:1;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.script-date{font-size:10px;color:var(--muted)}
+
+/* New script form */
+#new-script-form{padding:12px 14px;border-bottom:1px solid var(--border);display:none;gap:8px;flex-direction:column}
+#new-script-form.open{display:flex}
+
+/* Participants */
+.participant-row{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;border-bottom:1px solid var(--border);
+}
+.p-color-swatch{
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;cursor:pointer;
+  border:2px solid transparent;transition:transform .15s;position:relative;
+}
+.p-color-swatch:hover{transform:scale(1.1)}
+.p-name-input{flex:1;font-size:13px}
+.p-name-input input{padding:6px 9px;font-size:13px}
+
+/* Color picker popover */
+#color-picker{
+  position:fixed;z-index:500;background:var(--s2);border:1px solid var(--border2);
+  border-radius:12px;padding:12px;display:none;gap:8px;flex-wrap:wrap;width:200px;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+}
+#color-picker.open{display:flex}
+.cp-swatch{
+  width:36px;height:36px;border-radius:50%;cursor:pointer;border:2px solid transparent;
+  transition:transform .12s,border-color .12s;display:flex;align-items:center;justify-content:center;
+  font-size:14px;
+}
+.cp-swatch:hover{transform:scale(1.1)}
+.cp-swatch.sel{border-color:white}
+
+/* ═══════════════════════════════════════════════════════
+   CENTER PANEL – Script editor
+═══════════════════════════════════════════════════════ */
+#panel-center{grid-column:2;border-right:1px solid var(--border)}
+
+#editor-toolbar{
+  padding:10px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;
+}
+#speaker-pills{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.sp-pill{
+  padding:5px 13px;border-radius:20px;font-size:12px;font-weight:600;
+  cursor:pointer;border:2px solid transparent;transition:all .15s;opacity:.4;
+}
+.sp-pill.active{opacity:1}
+
+#editor-area{flex:1;overflow-y:auto;padding:16px}
+
+/* Block editor */
+.block-editor{
+  background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+  margin-bottom:12px;overflow:hidden;
+}
+.block-head{
+  display:flex;align-items:center;gap:8px;padding:10px 14px;
+  background:var(--s2);border-bottom:1px solid var(--border);
+}
+.block-head-inputs{display:flex;gap:8px;flex:1}
+.block-head-inputs input{padding:6px 9px;font-size:12px}
+.block-head-inputs input:first-child{flex:1}
+.block-head-inputs input:last-child{width:130px}
+.block-lines{padding:10px}
+.line-editor{
+  display:flex;align-items:flex-start;gap:6px;
+  margin-bottom:6px;padding:6px 8px;border-radius:8px;
+  border:1px solid transparent;transition:border-color .15s;
+}
+.line-editor:hover{border-color:var(--border)}
+.line-speaker-dot{
+  width:20px;height:20px;border-radius:50%;flex-shrink:0;margin-top:8px;
+  cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s;flex-shrink:0;
+}
+.line-speaker-dot:hover{transform:scale(1.2);border-color:rgba(255,255,255,.3)}
+.line-textarea{
+  flex:1;resize:none;min-height:38px;padding:7px 10px;
+  font-size:13px;line-height:1.45;overflow:hidden;
+}
+.line-type-toggle{
+  width:24px;height:24px;border-radius:4px;background:transparent;
+  border:1px solid var(--border);color:var(--muted);font-size:10px;
+  cursor:pointer;flex-shrink:0;margin-top:8px;display:flex;align-items:center;justify-content:center;
+  transition:all .12s;
+}
+.line-type-toggle:hover{background:var(--s3);color:var(--text)}
+.line-type-toggle.note-mode{background:rgba(251,191,36,.1);border-color:var(--orange);color:var(--orange)}
+.line-del{
+  width:22px;height:22px;border-radius:4px;background:transparent;
+  border:1px solid transparent;color:var(--muted);font-size:12px;
+  cursor:pointer;flex-shrink:0;margin-top:9px;
+  display:flex;align-items:center;justify-content:center;transition:all .12s;
+}
+.line-del:hover{background:rgba(251,113,133,.1);color:var(--red);border-color:rgba(251,113,133,.2)}
+
+#add-block-btn{
+  width:100%;padding:14px;background:transparent;border:2px dashed var(--border);
+  border-radius:var(--radius);color:var(--muted);font-family:'Figtree',system-ui,sans-serif;
+  font-size:13px;cursor:pointer;transition:all .15s;
+}
+#add-block-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ═══════════════════════════════════════════════════════
+   RIGHT PANEL – Transport + clock + preview
+═══════════════════════════════════════════════════════ */
+#panel-right{grid-column:3}
+
+/* Transport */
+.transport-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px;
+}
+.btn-big{
+  padding:20px 10px;font-size:13px;border-radius:var(--radius);
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+}
+.btn-big .icon{font-size:28px;line-height:1}
+.btn-play-big{
+  grid-column:1/-1;padding:22px;font-size:15px;
+  background:rgba(94,234,212,.12);border:1.5px solid rgba(94,234,212,.25);color:var(--green);
+}
+.btn-play-big.playing{background:rgba(251,113,133,.1);border-color:rgba(251,113,133,.2);color:var(--red)}
+
+/* Sliders */
+.slider-section{padding:0 14px 14px}
+.slider-row{margin-bottom:14px}
+.slider-header{display:flex;justify-content:space-between;margin-bottom:7px;font-size:11px}
+.slider-label{color:var(--text2);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.slider-val{color:var(--accent);font-weight:700;font-size:15px}
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:5px;border-radius:3px;
+  background:var(--border2);outline:none;cursor:pointer;border:none;padding:0;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:var(--accent);box-shadow:0 0 8px rgba(124,159,255,.4);cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:20px;height:20px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;
+}
+
+/* Blocks nav */
+.block-nav{padding:0 14px 14px}
+.block-nav-btn{
+  width:100%;text-align:left;padding:9px 12px;border-radius:8px;
+  background:transparent;border:1px solid var(--border);color:var(--text2);
+  font-family:'Figtree',system-ui,sans-serif;font-size:12px;cursor:pointer;
+  margin-bottom:5px;transition:all .12s;display:flex;align-items:center;gap:8px;
+}
+.block-nav-btn:hover{background:var(--s2);color:var(--text);border-color:var(--border2)}
+.block-nav-btn.active{background:rgba(124,159,255,.1);border-color:var(--accent);color:var(--accent)}
+.block-nav-num{
+  width:20px;height:20px;border-radius:4px;background:var(--s3);
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;
+}
+.block-nav-time{margin-left:auto;font-size:10px;color:var(--muted)}
+
+/* Clock panel */
+.clock-panel{padding:14px;border-top:1px solid var(--border)}
+.clock-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.clock-display{
+  font-size:36px;font-weight:700;font-variant-numeric:tabular-nums;
+  color:var(--accent);letter-spacing:.06em;
+  padding:12px 16px;background:var(--s2);border-radius:10px;text-align:center;flex:1;
+}
+.clock-display.warn{color:var(--red)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.toggle-label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)}
+.toggle{
+  width:38px;height:22px;border-radius:11px;background:var(--s3);border:none;
+  cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;
+}
+.toggle::after{
+  content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;
+  border-radius:50%;background:var(--muted);transition:left .2s,background .2s;
+}
+.toggle.on{background:rgba(94,234,212,.25)}
+.toggle.on::after{left:19px;background:var(--green)}
+
+/* Clock item sections */
+.ck-section{
+  border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;
+}
+.ck-label{
+  display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;
+  font-weight:600;color:var(--text2);
+}
+.ck-label input:checked ~ *,.ck-label:has(input:checked){color:var(--text)}
+
+/* Voice */
+.voice-section{padding:0 14px 14px;border-top:1px solid var(--border)}
+.voice-status{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+  background:var(--s2);border-radius:8px;font-size:12px;color:var(--text2);margin-bottom:8px;
+}
+.voice-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.voice-dot.active{background:var(--red);animation:vpulse 1s infinite}
+@keyframes vpulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Section divider ── */
+.sect{padding:10px 14px 4px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--border)}
+
+
+/* ── Right panel tabs ── */
+.rpanel-tabs{
+  display:flex;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.rpanel-tab{
+  flex:1;padding:11px 8px;font-size:11px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);background:transparent;border:none;
+  cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;
+  font-family:'Figtree',system-ui,sans-serif;
+}
+.rpanel-tab:hover{color:var(--text)}
+.rpanel-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.rpanel-section{display:none}
+.rpanel-section.active{display:block}
+
+/* ── Config sliders ── */
+.config-section{padding:14px}
+.config-row{margin-bottom:18px}
+.config-header{display:flex;justify-content:space-between;margin-bottom:7px;font-size:11px}
+.config-label{color:var(--text2);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.config-val{color:var(--accent);font-weight:700;font-size:15px}
+.config-hint{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5}
+.config-preview{
+  margin-top:12px;padding:10px 14px;background:var(--s2);border-radius:8px;
+  border-left:4px solid var(--accent);
+}
+.config-preview .preview-speaker{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.config-preview .preview-text{color:var(--text);line-height:1.3}
+.config-preview .preview-note{font-style:italic;color:var(--muted);font-size:12px;margin-top:6px}
+
+/* ── Script title bar ── */
+#script-title-bar{padding:8px 14px 6px;border-bottom:1px solid var(--border);flex-shrink:0;display:none}
+#script-title-input{
+  font-size:15px;font-weight:700;background:transparent;color:var(--text);
+  border:1px solid transparent;border-radius:6px;padding:4px 8px;width:100%;
+  font-family:'Figtree',system-ui,sans-serif;
+}
+#script-title-input:hover{border-color:var(--border2)}
+#script-title-input:focus{border-color:var(--accent);background:var(--s2);outline:none}
+
+/* ── Línea activa en play (sync desde teleprompter) ── */
+.line-editor.line-active{background:rgba(124,159,255,.07);border-radius:8px}
+.line-editor.line-active .line-textarea{color:var(--accent)}
+
+/* ── Botón saltar a línea ── */
+.line-jump{
+  width:22px;height:22px;border-radius:4px;background:transparent;
+  border:1px solid transparent;color:var(--muted);font-size:13px;
+  cursor:pointer;flex-shrink:0;margin-top:9px;
+  display:flex;align-items:center;justify-content:center;transition:all .12s;
+}
+.line-jump:hover{background:rgba(124,159,255,.1);color:var(--accent);border-color:rgba(124,159,255,.2)}
+
+/* ── Drag & drop indicators ── */
+.line-editor.drag-over-top{border-top:2px solid var(--accent) !important;border-radius:8px 8px 0 0}
+.line-editor.drag-over-bottom{border-bottom:2px solid var(--accent) !important;border-radius:0 0 8px 8px}
+
+/* ── Active block highlight ── */
+.block-editor.block-active{border-color:rgba(124,159,255,.4);box-shadow:0 0 0 1px rgba(124,159,255,.15)}
+.block-editor.block-active .block-head{background:rgba(124,159,255,.06)}
+
+/* ── Emoji picker ── */
+#emoji-picker{
+  position:fixed;z-index:502;background:var(--s2);border:1px solid var(--border2);
+  border-radius:12px;padding:10px;display:none;flex-wrap:wrap;gap:4px;width:252px;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+}
+#emoji-picker.open{display:flex}
+.emoji-btn{
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  border-radius:6px;cursor:pointer;font-size:18px;transition:background .1s;
+}
+.emoji-btn:hover{background:var(--s3)}
+
+/* ── Botón emoji en notas ── */
+.line-emoji{
+  width:22px;height:22px;border-radius:4px;background:transparent;
+  border:1px solid transparent;color:var(--muted);font-size:13px;
+  cursor:pointer;flex-shrink:0;margin-top:9px;
+  display:flex;align-items:center;justify-content:center;transition:all .12s;
+}
+.line-emoji:hover{background:rgba(251,191,36,.1);color:var(--orange);border-color:rgba(251,191,36,.2)}
+
+/* ── Speaker picker ── */
+#speaker-picker{
+  position:fixed;z-index:501;background:var(--s2);border:1px solid var(--border2);
+  border-radius:12px;padding:8px;display:none;flex-direction:column;gap:2px;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);min-width:160px;
+}
+#speaker-picker.open{display:flex}
+.sp-pick-item{
+  display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;
+  cursor:pointer;font-size:13px;font-weight:500;transition:background .1s;
+}
+.sp-pick-item:hover,.sp-pick-item.sp-pick-active{background:var(--s3)}
+.sp-pick-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0}
+
+/* ── Botones de crono en teal, timer en rojo ── */
+#chrono-controls .btn-green{background:rgba(94,234,212,.15);color:var(--green);border:1px solid rgba(94,234,212,.25)}
+#chrono-controls .btn-green:hover{background:rgba(94,234,212,.25)}
+#timer-controls  .btn-green{background:rgba(251,113,133,.12);color:var(--red);border:1px solid rgba(251,113,133,.22)}
+#timer-controls  .btn-green:hover{background:rgba(251,113,133,.22)}
+#chrono-display{color:var(--green) !important}
+#timer-display{color:var(--red) !important}
+
+/* ── Save bar ── */
+#save-bar{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  display:none;align-items:center;gap:10px;
+  background:var(--s2);border:1px solid var(--border2);
+  padding:10px 16px;border-radius:40px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:400;
+}
+#save-bar.show{display:flex}
+
+/* ── Toast ── */
+#toast{
+  position:fixed;bottom:20px;right:20px;background:var(--s2);
+  border:1px solid var(--border2);color:var(--text);padding:10px 18px;
+  border-radius:30px;font-size:12px;transform:translateY(80px);
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1);z-index:999;
+}
+#toast.show{transform:translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- ── Top bar ── -->
+<div id="topbar">
+  <span style="font-size:18px">🎛️</span>
+  <h1>Estudio</h1>
+  <div class="conn-badge"><div class="dot" id="ws-dot"></div><span id="ws-label">Desconectado</span></div>
+  <div id="clients-bar"></div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+    <div id="topbar-clock" style="display:none;gap:14px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums;color:var(--text2)"></div>
+    <div id="topbar-clock-sep" style="display:none;width:1px;height:20px;background:var(--border)"></div>
+    <button class="btn btn-ghost btn-sm" onclick="checkUpdate()" id="update-btn"
+            title="Buscar actualizaciones">🔄</button>
+    <button class="btn btn-ghost btn-sm"
+            onclick="window.open('/teleprompter.html','_blank')"
+            oncontextmenu="showQRModal('teleprompter',event)"
+            title="Abrir teleprónter (clic dcho: QR)">📺 Ver</button>
+    <button class="btn btn-ghost btn-sm"
+            onclick="window.open('/remote.html','_blank')"
+            oncontextmenu="showQRModal('remote',event)"
+            title="Abrir mando (clic dcho: QR)">📱 Mando</button>
+  </div>
+</div>
+
+<!-- ── Workspace ── -->
+<div id="workspace">
+
+  <!-- ══ LEFT PANEL ══ -->
+  <div class="panel" id="panel-left">
+
+    <div class="panel-head">
+      Guiones
+      <div style="display:flex;gap:5px">
+        <button class="btn btn-ghost btn-sm" onclick="importScript()" title="Importar guion desde fichero JSON">📥</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleNewScriptForm()">+ Nuevo</button>
+      </div>
+    </div>
+    <input type="file" id="import-file-input" accept=".json" style="display:none"
+           onchange="onImportFile(this)">
+
+    <div id="new-script-form">
+      <input type="text" id="new-script-title" placeholder="Nombre del guion…">
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-accent btn-sm" style="flex:1" onclick="createScript()">Crear</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleNewScriptForm()">Cancelar</button>
+      </div>
+    </div>
+
+    <div id="scripts-list"></div>
+
+    <div class="panel-head" style="margin-top:auto;border-top:1px solid var(--border)">
+      Participantes
+      <button class="btn btn-ghost btn-sm" onclick="addParticipant()">+ Añadir</button>
+    </div>
+
+    <div id="participants-list"></div>
+
+  </div>
+
+  <!-- ══ CENTER PANEL ══ -->
+  <div class="panel" id="panel-center">
+
+    <div id="script-title-bar">
+      <input type="text" id="script-title-input" placeholder="Título del guion…"
+             onchange="onScriptTitle(this.value)">
+    </div>
+
+    <div id="editor-toolbar">
+      <div id="speaker-pills"></div>
+      <button class="btn btn-ghost btn-sm" onclick="exportScript()" title="Exportar guion como fichero JSON">📤</button>
+      <button class="btn btn-ghost btn-sm" onclick="saveScript()" title="Guardar guion">💾 Guardar</button>
+      <button class="btn btn-accent btn-sm" onclick="publishScript()" title="Enviar al teleprónter">▶ Enviar</button>
+    </div>
+
+    <div id="editor-area">
+      <div id="blocks-container"></div>
+      <button id="add-block-btn" onclick="addBlock()">+ Añadir bloque</button>
+    </div>
+
+  </div>
+
+  <!-- ══ RIGHT PANEL ══ -->
+  <div class="panel" id="panel-right">
+
+    <!-- Tab bar -->
+    <div class="rpanel-tabs">
+      <button class="rpanel-tab active" onclick="switchRTab('transport',this)">▶ Control</button>
+      <button class="rpanel-tab" onclick="switchRTab('clock',this)">🕐 Tiempo</button>
+      <button class="rpanel-tab" onclick="switchRTab('voice',this)">🎤 Voz</button>
+      <button class="rpanel-tab" onclick="switchRTab('config',this)">⚙ Config</button>
+    </div>
+
+    <!-- SECTION: Transport -->
+    <div class="rpanel-section active" id="rtab-transport">
+    <!-- Transport -->
+    <div class="panel-head" style="margin-top:0">Reproducción</div>
+    <div class="transport-grid">
+      <button class="btn btn-ghost btn-big" onclick="send({type:'reset'})">
+        <span class="icon">⏮</span><span>Inicio</span>
+      </button>
+      <button class="btn btn-ghost btn-big" onclick="nudge(-200)">
+        <span class="icon">↑</span><span>Retroceder</span>
+      </button>
+      <button class="btn btn-big btn-play-big" id="play-btn" onclick="togglePlay()">
+        <span class="icon" id="play-icon">▶</span>
+        <span id="play-label">Reproducir</span>
+      </button>
+      <button class="btn btn-ghost btn-big" onclick="nudge(300)">
+        <span class="icon">↓</span><span>Avanzar</span>
+      </button>
+    </div>
+
+    <!-- Sliders -->
+    <div class="slider-section">
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-label">Velocidad</span>
+          <span class="slider-val" id="speed-val">45</span>
+        </div>
+        <input type="range" id="speed-range" min="5" max="200" value="45"
+               oninput="onSpeed(this.value)">
+      </div>
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-label">Tamaño texto</span>
+          <span class="slider-val" id="font-val">56</span>
+        </div>
+        <input type="range" id="font-range" min="24" max="110" value="56"
+               oninput="onFont(this.value)">
+      </div>
+    </div>
+
+    <!-- Block navigator -->
+    <div class="sect">Bloques</div>
+    <div class="block-nav" id="block-nav"></div>
+
+
+    </div><!-- /rtab-transport -->
+
+    <!-- SECTION: Clock -->
+    <div class="rpanel-section" id="rtab-clock">
+    <div class="clock-panel" style="border-top:none">
+      <div class="panel-head" style="padding:0 0 10px;border:none">Reloj / Tiempo</div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">Mostrar en teleprónter</span>
+        <button class="toggle on" id="clock-visible-toggle" onclick="toggleClockVisible()"></button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Mostrar en estudio</span>
+        <button class="toggle on" id="clock-studio-toggle" onclick="toggleClockStudio()"></button>
+      </div>
+
+      <!-- Fecha -->
+      <div class="ck-section">
+        <label class="ck-label">
+          <input type="checkbox" id="ck-date" onchange="onClockItems()" style="accent-color:var(--accent);width:15px;height:15px">
+          📅 Fecha
+        </label>
+        <div id="date-display" style="display:none;margin-top:8px;padding:10px 16px;background:var(--s2);border-radius:10px;font-size:16px;color:var(--accent);letter-spacing:.05em;text-align:center" id="date-display"></div>
+      </div>
+
+      <!-- Hora actual -->
+      <div class="ck-section">
+        <label class="ck-label">
+          <input type="checkbox" id="ck-clock" onchange="onClockItems()" checked style="accent-color:var(--accent);width:15px;height:15px">
+          🕐 Hora actual
+        </label>
+        <div class="clock-display" id="clock-display" style="margin-top:8px">00:00</div>
+      </div>
+
+      <!-- Cronómetro -->
+      <div class="ck-section">
+        <label class="ck-label">
+          <input type="checkbox" id="ck-chrono" onchange="onClockItems()" style="accent-color:var(--accent);width:15px;height:15px">
+          ⏱ Cronómetro
+        </label>
+        <div id="chrono-controls" style="display:none;margin-top:8px">
+          <div class="clock-display" id="chrono-display" style="color:#5eead4;margin-bottom:8px">00:00</div>
+          <button class="btn btn-green btn-sm btn-full" id="chrono-btn" onclick="toggleChrono()">▶ Iniciar</button>
+          <button class="btn btn-ghost btn-sm btn-full" onclick="resetChrono()" style="margin-top:6px">↺ Resetear</button>
+        </div>
+      </div>
+
+      <!-- Temporizador -->
+      <div class="ck-section">
+        <label class="ck-label">
+          <input type="checkbox" id="ck-timer" onchange="onClockItems()" style="accent-color:var(--accent);width:15px;height:15px">
+          ⏳ Temporizador
+        </label>
+        <div id="timer-controls" style="display:none;margin-top:8px">
+          <div class="clock-display clock-display--timer" id="timer-display" style="color:#fb7185;margin-bottom:10px">10:00</div>
+          <!-- Inputs H:M:S integrados en el display como edición -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:8px">
+            <input type="number" id="timer-h" value="0" min="0" max="23" style="width:52px;text-align:center"
+                   oninput="onTimerHMS()" placeholder="h">
+            <span style="font-size:16px;color:var(--muted);font-weight:700">:</span>
+            <input type="number" id="timer-m" value="10" min="0" max="59" style="width:52px;text-align:center"
+                   oninput="onTimerHMS()" placeholder="m">
+            <span style="font-size:16px;color:var(--muted);font-weight:700">:</span>
+            <input type="number" id="timer-s" value="0" min="0" max="59" style="width:52px;text-align:center"
+                   oninput="onTimerHMS()" placeholder="s">
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+            <button class="btn btn-ghost btn-sm" onclick="applyTimerPreset(1)"  title="1 minuto">1'</button>
+            <button class="btn btn-ghost btn-sm" onclick="applyTimerPreset(5)"  title="5 minutos">5'</button>
+            <button class="btn btn-ghost btn-sm" onclick="applyTimerPreset(10)" title="10 minutos">10'</button>
+            <button class="btn btn-ghost btn-sm" onclick="applyTimerPreset(15)" title="15 minutos">15'</button>
+            <button class="btn btn-ghost btn-sm" onclick="applyTimerPreset(30)" title="30 minutos">30'</button>
+          </div>
+          <button class="btn btn-green btn-sm btn-full" id="timer-btn" onclick="toggleTimer()">▶ Iniciar</button>
+          <button class="btn btn-ghost btn-sm btn-full" onclick="resetTimer()" style="margin-top:6px">↺ Resetear</button>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- /rtab-clock -->
+
+    <!-- SECTION: Voice -->
+    <div class="rpanel-section" id="rtab-voice">
+    <div class="voice-section" style="border-top:none">
+      <div class="sect" style="padding:0 0 10px;border:none">Reconocimiento de voz</div>
+      <div class="voice-status">
+        <div class="voice-dot" id="voice-dot"></div>
+        <span id="voice-status-text">Inactivo</span>
+      </div>
+      <button class="btn btn-ghost btn-sm btn-full" id="voice-btn" onclick="toggleVoice()">🎤 Activar micrófono</button>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
+        Escucha la voz y avanza el teleprónter automáticamente cuando detecta silencio entre frases.
+      </div>
+    </div></div><!-- /rtab-voice -->
+
+    <!-- SECTION: Config -->
+    <div class="rpanel-section" id="rtab-config">
+      <div class="config-section">
+
+        <div class="config-row">
+          <div class="config-header">
+            <span class="config-label">Tamaño texto principal</span>
+            <span class="config-val" id="cfg-font-val">56 px</span>
+          </div>
+          <input type="range" id="cfg-font-range" min="24" max="110" value="56"
+                 oninput="onCfgFont(this.value)">
+          <div class="config-hint">Tamaño de la fuente principal en el teleprónter.</div>
+        </div>
+
+        <div class="config-row">
+          <div class="config-header">
+            <span class="config-label">Tamaño nombres</span>
+            <span class="config-val" id="cfg-speaker-val">22 %</span>
+          </div>
+          <input type="range" id="cfg-speaker-range" min="10" max="60" value="22"
+                 oninput="onCfgSpeaker(this.value)">
+          <div class="config-hint">Relativo al texto principal. 22 % = nombre a ~12 px si texto a 56 px. Mínimo 12 px.</div>
+        </div>
+
+        <div class="config-row">
+          <div class="config-header">
+            <span class="config-label">Tamaño notas</span>
+            <span class="config-val" id="cfg-note-val">42 %</span>
+          </div>
+          <input type="range" id="cfg-note-range" min="10" max="80" value="42"
+                 oninput="onCfgNote(this.value)">
+          <div class="config-hint">Tamaño del texto de las notas de dirección.</div>
+        </div>
+
+        <div class="config-row">
+          <div class="config-header">
+            <span class="config-label">Velocidad de scroll</span>
+            <span class="config-val" id="cfg-speed-val">45</span>
+          </div>
+          <input type="range" id="cfg-speed-range" min="5" max="200" value="45"
+                 oninput="onCfgSpeed(this.value)">
+          <div class="config-hint">Píxeles por segundo. Ajusta al ritmo de los presentadores.</div>
+        </div>
+
+        <div class="config-row">
+          <div class="config-header">
+            <span class="config-label">Ancho de pantalla</span>
+            <span class="config-val" id="cfg-width-val">80 %</span>
+          </div>
+          <input type="range" id="cfg-width-range" min="40" max="100" value="80"
+                 oninput="onCfgWidth(this.value)">
+          <div class="config-hint">Porcentaje del ancho usado para el texto. Reduce si hay demasiado margen lateral.</div>
+        </div>
+
+        <div class="config-row">
+          <div class="config-header"><span class="config-label">Pantalla Teleprónter</span></div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:8px;cursor:pointer">
+            <input type="checkbox" id="cfg-hide-cursor" onchange="onCfgHideCursor(this.checked)"
+                   style="accent-color:var(--accent);width:14px;height:14px">
+            Ocultar cursor del ratón
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
+            <input type="checkbox" id="cfg-show-ip" onchange="onCfgShowIP(this.checked)"
+                   style="accent-color:var(--accent);width:14px;height:14px">
+            Mostrar IP del servidor en HUD
+          </label>
+        </div>
+
+        <!-- Guardar / restablecer -->
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="btn btn-green btn-sm" style="flex:1" onclick="saveConfig()">💾 Guardar como predeterminado</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetConfig()" title="Restaurar valores de fábrica">↺ Defecto</button>
+        </div>
+
+        <!-- Live preview -->
+        <div class="config-preview" id="cfg-preview">
+          <div class="preview-speaker" id="cfg-prev-speaker" style="font-size:12px">Lourdes</div>
+          <div class="preview-text" id="cfg-prev-text" style="font-size:56px;line-height:1.3">
+            Texto de ejemplo
+          </div>
+          <div class="preview-note" id="cfg-prev-note">↑ Nota de dirección</div>
+        </div>
+
+      </div>
+    </div><!-- /rtab-config -->
+
+  </div>
+</div>
+
+<!-- Color picker -->
+<div id="color-picker"></div>
+<!-- Speaker picker -->
+<div id="speaker-picker"></div>
+<!-- Emoji picker -->
+<div id="emoji-picker"></div>
+<!-- Update modal -->
+<div id="update-modal" onclick="this.style.display='none'"
+     style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.75);
+            align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+  <div onclick="event.stopPropagation()"
+       style="background:var(--s2);border:1px solid var(--border2);border-radius:16px;
+              padding:24px;width:480px;max-width:90vw;display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--text)">🔄 Actualización</div>
+    <pre id="update-output"
+         style="background:var(--bg);border-radius:8px;padding:12px;font-size:11px;
+                color:var(--text2);white-space:pre-wrap;max-height:240px;overflow-y:auto;
+                font-family:monospace;margin:0">Comprobando…</pre>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="restart-btn" class="btn btn-green btn-sm" style="display:none"
+              onclick="doRestart()">⚡ Reiniciar servidor</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('update-modal').style.display='none'">Cerrar</button>
+    </div>
+  </div>
+</div>
+<!-- QR modal -->
+<div id="qr-modal" onclick="this.style.display='none'"
+     style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.75);
+            align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+  <div id="qr-modal-content" onclick="event.stopPropagation()"></div>
+</div>
+
+<!-- Save bar -->
+<div id="save-bar">
+  <span style="font-size:12px;color:var(--text2)">Cambios sin guardar</span>
+  <button class="btn btn-accent btn-sm" onclick="saveScript()">💾 Guardar</button>
+  <button class="btn btn-ghost btn-sm" onclick="hideSaveBar()">Descartar</button>
+</div>
+
+<div id="toast"></div>
+<div id="powered-by" style="position:fixed;bottom:8px;right:12px;font-size:10px;letter-spacing:.05em;color:var(--text2);opacity:.6;pointer-events:none;z-index:1">
+  Powered by meettheexpert.tech
+</div>
+<script>
+  fetch("/api/network").then(r=>r.json()).then(d=>{
+    const el=document.getElementById("powered-by");
+    if(el&&d.version) el.textContent=`Powered by meettheexpert.tech · v${d.version}`;
+  }).catch(()=>{});
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let COLORS     = [];
+let scripts    = [];
+let activeScriptId = null;
+let script     = null;   // {id, title, participants:[], blocks:[]}
+let playing    = false;
+let speed      = 45;
+let fontSize   = 56;
+let scrollPx   = 0;
+let activeBlockIdx = 0;
+let dirty      = false;
+let speakerSize  = 22; // percent relative to fontSize
+let contentWidth = 80;
+let hideCursor   = false;
+let showServerIP = false;
+let noteSize     = 42; // percent relative to fontSize
+let emojiTarget  = null; // textarea activo para insertar emoji
+
+// clock
+let clockVisible = true;
+let clockItems   = ["clock"]; // array: ["clock","chrono","timer"]
+let timerSec     = 600;
+let chronoRunning  = false;
+let timerRunning   = false;
+let showInStudio   = true;
+let chronoStart    = null;
+let chronoElapsed  = 0;
+let timerStart     = null;
+let timerElapsed   = 0;
+
+// voice
+let voiceActive = false;
+let recognition = null;
+let voiceLastText = "";
+
+// active speaker for new lines
+let activeSpeakerIdx = 0;
+
+// color picker state
+let colorPickerTarget = null; // {participantIdx}
+
+// speaker picker state
+let speakerPickerTarget = null; // {bi, li}
+
+// drag & drop state
+let dragState = null; // {bi, li}
+
+// ══════════════════════════════════════════════════════
+// WEBSOCKET
+// ══════════════════════════════════════════════════════
+let ws;
+function connectWS() {
+  ws = new WebSocket(`ws://${location.host}`);
+  ws.onopen = () => {
+    document.getElementById("ws-dot").classList.add("live");
+    document.getElementById("ws-label").textContent = "Conectado";
+    ws.send(JSON.stringify({ type:"register", role:"studio", name:"Estudio" }));
+  };
+  ws.onclose = () => {
+    document.getElementById("ws-dot").classList.remove("live");
+    document.getElementById("ws-label").textContent = "Reconectando…";
+    setTimeout(connectWS, 2000);
+  };
+  ws.onmessage = ({ data }) => {
+  const msg = JSON.parse(data);
+  switch (msg.type) {
+
+    case "init":
+      COLORS  = msg.colors;
+      scripts = msg.scripts || [];
+      if (msg.script) { script = msg.script; activeScriptId = msg.activeScriptId; }
+      speed    = msg.playhead?.speed    || 45;
+      fontSize = msg.playhead?.fontSize || 56;
+      playing  = msg.playhead?.playing  || false;
+      scrollPx = msg.playhead?.scrollPx || 0;
+      applyClock(msg.clock);
+      buildColorPicker();
+      renderScriptsList();
+      renderEditor();
+      syncPlayUI();
+      syncSliders();
+      break;
+
+    case "scripts_list":
+      scripts = msg.scripts;
+      renderScriptsList();
+      break;
+
+    case "script_saved":
+      activeScriptId = msg.id;
+      dirty = false;
+      hideSaveBar();
+      toast("Guión guardado ✓");
+      break;
+
+    case "script_loaded":
+      script = msg.script;
+      activeScriptId = msg.activeScriptId;
+      renderEditor();
+      renderBlockNav();
+      break;
+
+    case "play":   playing = true;  syncPlayUI(); break;
+    case "pause":  playing = false; syncPlayUI(); break;
+    case "reset":  playing = false; scrollPx = 0; syncPlayUI(); break;
+    case "set_speed": speed = msg.value; syncSliders(); break;
+    case "set_font":  fontSize = msg.value; syncSliders(); break;
+    case "scroll_to": scrollPx = msg.px ?? scrollPx; break;
+    case "sync_scroll": scrollPx = msg.px; break;
+    case "jump_block": updateActiveBlock(msg.index); break;
+    case "patch_line":
+      if (script?.blocks[msg.blockIndex]?.lines[msg.lineIndex] != null) {
+        script.blocks[msg.blockIndex].lines[msg.lineIndex].text = msg.text;
+      }
+      break;
+    case "clients_updated": renderClients(msg.clients); break;
+
+    case "clock_update":  applyClock(msg.clock); break;
+    case "chrono_start":  chronoStart = msg.at; chronoElapsed = 0; chronoRunning = true; updateChronoBtn(); break;
+    case "chrono_stop":   chronoStart = null; chronoElapsed = msg.elapsed; chronoRunning = false; updateChronoBtn(); break;
+    case "chrono_reset":  chronoStart = null; chronoElapsed = 0; chronoRunning = false; updateChronoBtn(); break;
+    case "jump_line":     updateActiveBlock(msg.blockIndex); break;
+    case "sync_line": {
+      document.querySelectorAll(".line-editor").forEach(el => el.classList.remove("line-active"));
+      const bEl = document.querySelector(`.block-editor[data-block="${msg.blockIndex}"]`);
+      if (bEl) {
+        const lEl = bEl.querySelector(`.line-editor[data-line="${msg.lineIndex}"]`);
+        if (lEl) { lEl.classList.add("line-active"); lEl.scrollIntoView({block:"nearest",behavior:"smooth"}); }
+        updateActiveBlock(msg.blockIndex);
+      }
+      break;
+    }
+    case "timer_start":   timerStart = msg.at; timerElapsed = 0; timerSec = msg.sec; timerRunning = true; updateTimerBtn(); break;
+    case "timer_stop":    timerStart = null; timerElapsed = msg.elapsed; timerRunning = false; updateTimerBtn(); break;
+    case "timer_reset":   timerStart = null; timerElapsed = 0; timerRunning = false; updateTimerBtn(); break;
+    case "set_config":    applyConfigFromMsg(msg.config); syncConfigTab(); break;
+    case "config_saved":  toast(msg.reset ? "Config restablecida ✓" : "Config guardada como predeterminada ✓"); break;
+  }
+  };
+}
+connectWS();
+
+function send(obj) { ws?.readyState === 1 && ws.send(JSON.stringify(obj)); }
+
+// ══════════════════════════════════════════════════════
+// SCRIPTS LIST
+// ══════════════════════════════════════════════════════
+function renderScriptsList() {
+  const el = document.getElementById("scripts-list");
+  if (!scripts.length) {
+    el.innerHTML = `<div style="padding:16px;font-size:12px;color:var(--muted);text-align:center">Sin guiones guardados</div>`;
+    return;
+  }
+  el.innerHTML = scripts.map(sc => {
+    const active = sc.id === activeScriptId;
+    const date   = sc.updatedAt ? new Date(sc.updatedAt).toLocaleDateString("es-ES",{day:"2-digit",month:"short"}) : "";
+    return `
+      <div class="script-item ${active?"active":""}" onclick="loadScript('${sc.id}')">
+        <div style="flex:1;min-width:0">
+          <div class="script-name">${esc(sc.title)}</div>
+          <div class="script-date">${date}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();exportScriptById('${sc.id}')" title="Exportar">📤</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();deleteScript('${sc.id}')" title="Eliminar">🗑</button>
+      </div>`;
+  }).join("");
+}
+
+function toggleNewScriptForm() {
+  document.getElementById("new-script-form").classList.toggle("open");
+}
+
+function createScript() {
+  const title = document.getElementById("new-script-title").value.trim() || "Nuevo guion";
+  script = {
+    id: null,
+    title,
+    participants: [
+      { id:"p0", name:"Locutor 1", colorIdx:0 },
+      { id:"p1", name:"Locutor 2", colorIdx:1 },
+    ],
+    blocks: [{ title:"Bloque 1", time:"", lines:[] }],
+  };
+  activeScriptId = null;
+  document.getElementById("new-script-form").classList.remove("open");
+  document.getElementById("new-script-title").value = "";
+  renderEditor();
+  markDirty();
+}
+
+function loadScript(id) {
+  send({ type:"load_script", id });
+}
+
+function deleteScript(id) {
+  if (!confirm("¿Eliminar este guion?")) return;
+  send({ type:"delete_script", id });
+}
+
+// ══════════════════════════════════════════════════════
+// PARTICIPANTS
+// ══════════════════════════════════════════════════════
+function renderParticipants() {
+  const el = document.getElementById("participants-list");
+  if (!script) { el.innerHTML = ""; return; }
+  el.innerHTML = (script.participants || []).map((p, i) => {
+    const color = COLORS[p.colorIdx ?? i] || COLORS[0];
+    return `
+      <div class="participant-row">
+        <div class="p-color-swatch"
+             style="background:${color.bg}"
+             onclick="openColorPicker(event,${i})"
+             title="Cambiar color">
+        </div>
+        <div class="p-name-input" style="flex:1">
+          <input type="text" value="${esc(p.name)}"
+                 onchange="onParticipantName(${i},this.value)"
+                 placeholder="Nombre…">
+        </div>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="removeParticipant(${i})" title="Quitar">×</button>
+      </div>`;
+  }).join("");
+}
+
+function addParticipant() {
+  if (!script) { toast("Crea o carga un guion primero"); return; }
+  const idx = script.participants.length;
+  if (idx >= 8) { toast("Máximo 8 participantes"); return; }
+  script.participants.push({ id:`p${Date.now()}`, name:`Locutor ${idx+1}`, colorIdx: idx % COLORS.length });
+  renderEditor();
+  markDirty();
+}
+
+function removeParticipant(idx) {
+  script.participants.splice(idx, 1);
+  renderEditor();
+  markDirty();
+}
+
+function onParticipantName(idx, val) {
+  script.participants[idx].name = val;
+  renderSpeakerPills();
+  markDirty();
+}
+
+// ══════════════════════════════════════════════════════
+// COLOR PICKER
+// ══════════════════════════════════════════════════════
+function buildColorPicker() {
+  const el = document.getElementById("color-picker");
+  el.innerHTML = COLORS.map((c, i) =>
+    `<div class="cp-swatch" style="background:${c.bg}" onclick="pickColor(${i})" title="${c.label}">
+     </div>`
+  ).join("");
+}
+
+function openColorPicker(evt, participantIdx) {
+  colorPickerTarget = participantIdx;
+  const el = document.getElementById("color-picker");
+  el.classList.add("open");
+  const rect = evt.target.getBoundingClientRect();
+  const pickerH = 96; // altura aproximada del picker (2 filas de swatches)
+  const spaceBelow = window.innerHeight - rect.bottom;
+  if (spaceBelow < pickerH + 12) {
+    el.style.top  = (rect.top - pickerH - 6) + "px";
+  } else {
+    el.style.top  = (rect.bottom + 6) + "px";
+  }
+  // Evitar que se salga por la derecha
+  const left = Math.min(rect.left, window.innerWidth - 216);
+  el.style.left = left + "px";
+  // Mark current
+  const current = script.participants[participantIdx]?.colorIdx ?? 0;
+  el.querySelectorAll(".cp-swatch").forEach((s,i) => s.classList.toggle("sel", i===current));
+}
+
+function pickColor(colorIdx) {
+  if (colorPickerTarget == null) return;
+  script.participants[colorPickerTarget].colorIdx = colorIdx;
+  document.getElementById("color-picker").classList.remove("open");
+  colorPickerTarget = null;
+  renderEditor();
+  markDirty();
+}
+
+document.addEventListener("click", e => {
+  if (!e.target.closest("#color-picker") && !e.target.closest(".p-color-swatch")) {
+    document.getElementById("color-picker").classList.remove("open");
+  }
+  if (!e.target.closest("#speaker-picker") && !e.target.closest(".line-speaker-dot")) {
+    document.getElementById("speaker-picker").classList.remove("open");
+    speakerPickerTarget = null;
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// EDITOR
+// ══════════════════════════════════════════════════════
+function renderEditor() {
+  renderParticipants();
+  renderSpeakerPills();
+  renderBlocks();
+  renderBlockNav();
+  updateTitleBar();
+}
+
+function updateTitleBar() {
+  const bar = document.getElementById("script-title-bar");
+  const input = document.getElementById("script-title-input");
+  if (script) {
+    bar.style.display = "block";
+    input.value = script.title || "";
+  } else {
+    bar.style.display = "none";
+  }
+}
+
+function onScriptTitle(val) {
+  if (!script) return;
+  script.title = val.trim() || "Sin título";
+  const idx = scripts.findIndex(s => s.id === activeScriptId);
+  if (idx >= 0) scripts[idx].title = script.title;
+  renderScriptsList();
+  markDirty();
+}
+
+function renderSpeakerPills() {
+  const el = document.getElementById("speaker-pills");
+  if (!script) { el.innerHTML = ""; return; }
+  el.innerHTML = (script.participants || []).map((p, i) => {
+    const color = COLORS[p.colorIdx ?? i] || COLORS[0];
+    const active = activeSpeakerIdx === i;
+    return `<div class="sp-pill ${active?"active":""}"
+                 style="background:${color.bg}${active?"28":"14"};color:${color.bg};border-color:${active?color.bg:"transparent"}"
+                 onclick="setActiveSpeaker(${i})">${esc(p.name)}</div>`;
+  }).join("");
+}
+
+function setActiveSpeaker(i) {
+  activeSpeakerIdx = i;
+  renderSpeakerPills();
+}
+
+function renderBlocks() {
+  const container = document.getElementById("blocks-container");
+  if (!script) { container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px">Crea o carga un guion desde el panel izquierdo</div>`; return; }
+  container.innerHTML = (script.blocks || []).map((block, bi) => renderBlockHTML(block, bi)).join("");
+  container.querySelectorAll(".line-textarea").forEach(autoResize);
+  attachDragListeners();
+}
+
+function updateActiveBlock(idx) {
+  activeBlockIdx = idx;
+  document.querySelectorAll(".block-editor").forEach((el, i) =>
+    el.classList.toggle("block-active", i === activeBlockIdx)
+  );
+  renderBlockNav();
+}
+
+function renderBlockHTML(block, bi) {
+  const lines = (block.lines || []).map((line, li) => renderLineHTML(line, bi, li)).join("");
+  const isActive = bi === activeBlockIdx;
+  return `
+    <div class="block-editor ${isActive?"block-active":""}" data-block="${bi}">
+      <div class="block-head">
+        <div class="block-head-inputs">
+          <input type="text" value="${esc(block.title||"")}" placeholder="Nombre del bloque…"
+                 onchange="onBlockTitle(${bi},this.value)">
+          <input type="text" value="${esc(block.time||"")}" placeholder="00:00"
+                 title="Tiempo orientativo" onchange="onBlockTime(${bi},this.value)">
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="addLine(${bi})" title="Añadir línea">+ Línea</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="duplicateBlock(${bi})" title="Duplicar bloque">⧉</button>
+        <button class="btn btn-red btn-sm btn-icon" onclick="removeBlock(${bi})" title="Eliminar bloque">🗑</button>
+      </div>
+      <div class="block-lines" id="block-lines-${bi}">${lines}</div>
+    </div>`;
+}
+
+function renderLineHTML(line, bi, li) {
+  const pidx   = (script.participants||[]).findIndex(p => p.id === line.participantId);
+  const p      = script.participants?.[pidx >= 0 ? pidx : 0];
+  const color  = COLORS[p?.colorIdx ?? 0] || COLORS[0];
+  const isNote = line.type === "note";
+  const dotColor = isNote ? "var(--orange)" : color.bg;
+
+  return `
+    <div class="line-editor" data-line="${li}" draggable="true"
+         style="border-left:4px solid ${dotColor};padding-left:10px">
+      <div class="line-speaker-dot" style="background:${dotColor}"
+           title="${isNote?"Nota (clic para cambiar)":"Cambiar locutor"}"
+           onclick="openSpeakerPicker(${bi},${li},event)"></div>
+      <textarea class="line-textarea"
+                onchange="onLineText(${bi},${li},this.value)"
+                oninput="autoResize(this)">${esc(line.text||"")}</textarea>
+      ${isNote?`<button class="line-emoji" onclick="openEmojiPicker(this.closest('.line-editor').querySelector('.line-textarea'),event)" title="Insertar emoji">😊</button>`:""}
+      <button class="line-jump" onclick="jumpToLine(${bi},${li})" title="Saltar a esta línea en el teleprónter">⤵</button>
+      <button class="line-del" onclick="removeLine(${bi},${li})" title="Eliminar línea">×</button>
+    </div>`;
+}
+
+function autoResize(el) {
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
+// ── Undo ────────────────────────────────────────────────────────────────────
+const undoStack = [];
+const MAX_UNDO  = 30;
+
+function snapshot() {
+  if (!script) return;
+  undoStack.push(JSON.stringify(script));
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+}
+
+function undo() {
+  if (!undoStack.length) { toast("Nada que deshacer"); return; }
+  script = JSON.parse(undoStack.pop());
+  renderEditor();
+  markDirty();
+  toast("Deshecho ↩");
+}
+
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+    const tag = document.activeElement?.tagName;
+    if (tag === "TEXTAREA" || tag === "INPUT") return; // dejar que el browser maneje el undo en campos de texto
+    e.preventDefault();
+    undo();
+  }
+});
+
+// Block ops
+function addBlock() {
+  if (!script) { toast("Crea o carga un guion primero"); return; }
+  script.blocks.push({ title:`Bloque ${script.blocks.length+1}`, time:"", lines:[] });
+  renderBlocks();
+  renderBlockNav();
+  markDirty();
+}
+
+function removeBlock(bi) {
+  if (script.blocks.length <= 1) { toast("Debe haber al menos un bloque"); return; }
+  snapshot();
+  script.blocks.splice(bi, 1);
+  renderBlocks();
+  renderBlockNav();
+  markDirty();
+}
+
+function onBlockTitle(bi, val) { script.blocks[bi].title = val; renderBlockNav(); markDirty(); }
+function onBlockTime(bi, val)  { script.blocks[bi].time  = val; renderBlockNav(); markDirty(); }
+
+// Line ops
+function addLine(bi) {
+  const p = script.participants?.[activeSpeakerIdx];
+  script.blocks[bi].lines.push({
+    participantId: p?.id || script.participants?.[0]?.id || "p0",
+    text: "",
+    type: "line",
+  });
+  renderBlocks();
+  markDirty();
+  // Focus new textarea
+  setTimeout(() => {
+    const lines = document.querySelectorAll(`#block-lines-${bi} .line-textarea`);
+    if (lines.length) lines[lines.length-1].focus();
+  }, 50);
+}
+
+function jumpToLine(bi, li) {
+  activeBlockIdx = bi;
+  renderBlockNav();
+  send({ type:"jump_line", blockIndex:bi, lineIndex:li });
+}
+
+function removeLine(bi, li) {
+  if (playing && !confirm("El teleprónter está en marcha. ¿Eliminar esta línea?")) return;
+  snapshot();
+  script.blocks[bi].lines.splice(li, 1);
+  renderBlocks();
+  markDirty();
+}
+
+function onLineText(bi, li, val) {
+  script.blocks[bi].lines[li].text = val;
+  markDirty();
+  if (activeScriptId) send({ type:"patch_line", blockIndex:bi, lineIndex:li, text:val });
+}
+
+function toggleLineType(bi, li) {
+  const line = script.blocks[bi].lines[li];
+  line.type = line.type === "note" ? "line" : "note";
+  if (line.type === "line" && !line.participantId) {
+    line.participantId = script.participants?.[activeSpeakerIdx]?.id;
+  }
+  renderBlocks();
+  markDirty();
+}
+
+function duplicateBlock(bi) {
+  const copy = JSON.parse(JSON.stringify(script.blocks[bi]));
+  copy.title = (copy.title || `Bloque ${bi+1}`) + " (copia)";
+  script.blocks.splice(bi + 1, 0, copy);
+  renderBlocks();
+  renderBlockNav();
+  markDirty();
+}
+
+// ── Speaker picker ──────────────────────────────────────────────────────────
+function openSpeakerPicker(bi, li, e) {
+  e.stopPropagation();
+  speakerPickerTarget = { bi, li };
+  const picker = document.getElementById("speaker-picker");
+  const line = script.blocks[bi].lines[li];
+  const currentId = line.participantId;
+  const isNote = line.type === "note";
+  picker.innerHTML =
+    `<div class="sp-pick-item ${isNote?"sp-pick-active":""}" onclick="pickSpeaker('__note__')">
+       <div class="sp-pick-dot" style="background:var(--orange)"></div>
+       <span>📝 Nota</span>
+     </div>` +
+    (script.participants || []).map((p, i) => {
+      const color = COLORS[p.colorIdx ?? i] || COLORS[0];
+      return `<div class="sp-pick-item ${p.id===currentId&&!isNote?"sp-pick-active":""}"
+                   onclick="pickSpeaker('${p.id}')">
+        <div class="sp-pick-dot" style="background:${color.bg}"></div>
+        <span>${esc(p.name)}</span>
+      </div>`;
+    }).join("");
+  picker.classList.add("open");
+  const rect = e.target.getBoundingClientRect();
+  const pickerH = Math.min(script.participants.length * 36 + 16, 280);
+  const spaceBelow = window.innerHeight - rect.bottom;
+  picker.style.top  = (spaceBelow < pickerH + 8
+    ? rect.top - pickerH - 4
+    : rect.bottom + 4) + "px";
+  picker.style.left = Math.min(rect.left, window.innerWidth - 176) + "px";
+}
+
+function pickSpeaker(participantId) {
+  if (!speakerPickerTarget) return;
+  const { bi, li } = speakerPickerTarget;
+  snapshot();
+  if (participantId === "__note__") {
+    script.blocks[bi].lines[li].type = "note";
+    script.blocks[bi].lines[li].participantId = null;
+  } else {
+    script.blocks[bi].lines[li].type = "line";
+    script.blocks[bi].lines[li].participantId = participantId;
+  }
+  speakerPickerTarget = null;
+  document.getElementById("speaker-picker").classList.remove("open");
+  renderBlocks();
+  markDirty();
+}
+
+// ── Drag & drop ─────────────────────────────────────────────────────────────
+document.getElementById("editor-area").addEventListener("scroll", () => {
+  document.getElementById("speaker-picker").classList.remove("open");
+  speakerPickerTarget = null;
+}, { passive: true });
+
+function attachDragListeners() {
+  document.querySelectorAll(".line-editor[draggable]").forEach(el => {
+    el.addEventListener("dragstart", onLineDragStart);
+    el.addEventListener("dragover",  onLineDragOver);
+    el.addEventListener("dragleave", onLineDragLeave);
+    el.addEventListener("drop",      onLineDrop);
+    el.addEventListener("dragend",   onLineDragEnd);
+  });
+}
+
+function onLineDragStart(e) {
+  const lineEl  = e.currentTarget;
+  const blockEl = lineEl.closest(".block-editor");
+  dragState = { bi: parseInt(blockEl.dataset.block), li: parseInt(lineEl.dataset.line) };
+  e.dataTransfer.effectAllowed = "move";
+  lineEl.style.opacity = "0.4";
+}
+
+function onLineDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  const lineEl = e.currentTarget;
+  const rect   = lineEl.getBoundingClientRect();
+  document.querySelectorAll(".line-editor").forEach(el =>
+    el.classList.remove("drag-over-top", "drag-over-bottom"));
+  if (e.clientY < rect.top + rect.height / 2) lineEl.classList.add("drag-over-top");
+  else lineEl.classList.add("drag-over-bottom");
+}
+
+function onLineDragLeave(e) {
+  e.currentTarget.classList.remove("drag-over-top", "drag-over-bottom");
+}
+
+function onLineDrop(e) {
+  e.preventDefault();
+  document.querySelectorAll(".line-editor").forEach(el =>
+    el.classList.remove("drag-over-top", "drag-over-bottom"));
+  if (!dragState) return;
+  const lineEl  = e.currentTarget;
+  const blockEl = lineEl.closest(".block-editor");
+  const targetBi = parseInt(blockEl.dataset.block);
+  const targetLi = parseInt(lineEl.dataset.line);
+  if (dragState.bi !== targetBi) { dragState = null; return; }
+  const after = e.clientY >= lineEl.getBoundingClientRect().top + lineEl.getBoundingClientRect().height / 2;
+  const { bi, li: srcLi } = dragState;
+  dragState = null;
+  if (srcLi === targetLi) return;
+  snapshot();
+  const lines = script.blocks[bi].lines;
+  const [moved] = lines.splice(srcLi, 1);
+  let dest = after ? targetLi : targetLi;
+  if (after && targetLi >= srcLi) dest = targetLi;
+  else if (!after && targetLi > srcLi) dest = targetLi - 1;
+  else if (!after && targetLi <= srcLi) dest = targetLi;
+  else dest = targetLi - 1;
+  lines.splice(dest, 0, moved);
+  renderBlocks();
+  markDirty();
+}
+
+function onLineDragEnd(e) {
+  e.currentTarget.style.opacity = "";
+  dragState = null;
+  document.querySelectorAll(".line-editor").forEach(el =>
+    el.classList.remove("drag-over-top", "drag-over-bottom"));
+}
+
+// ── Emoji picker ─────────────────────────────────────────────────────────────
+const EMOJIS = [
+  "⬆","⬇","➡","⬅","↩","↪","↑","↓","→","←",
+  "🎙️","📷","🎬","📢","🎵","🎶","🔔",
+  "👏","👍","🤝","✋","🙏","👋",
+  "⚠️","✅","❌","⏸","▶","⏭","⏮","🔴","🟡","🟢",
+  "★","•","·","—","…","«","»",
+];
+
+function openEmojiPicker(textarea, e) {
+  e.stopPropagation();
+  emojiTarget = textarea;
+  const picker = document.getElementById("emoji-picker");
+  picker.innerHTML = EMOJIS.map(em =>
+    `<span class="emoji-btn" onclick="insertEmoji('${em}')">${em}</span>`
+  ).join("");
+  picker.classList.add("open");
+  const rect = e.target.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  picker.style.top  = (spaceBelow < 180 ? rect.top - 180 : rect.bottom + 4) + "px";
+  picker.style.left = Math.min(rect.left, window.innerWidth - 260) + "px";
+}
+
+function insertEmoji(emoji) {
+  if (!emojiTarget) return;
+  const s = emojiTarget.selectionStart, en = emojiTarget.selectionEnd;
+  emojiTarget.value = emojiTarget.value.slice(0, s) + emoji + emojiTarget.value.slice(en);
+  emojiTarget.selectionStart = emojiTarget.selectionEnd = s + [...emoji].length;
+  emojiTarget.dispatchEvent(new Event("change"));
+  autoResize(emojiTarget);
+  emojiTarget.focus();
+  document.getElementById("emoji-picker").classList.remove("open");
+}
+
+document.addEventListener("click", e => {
+  if (!e.target.closest("#emoji-picker") && !e.target.closest(".line-emoji")) {
+    document.getElementById("emoji-picker").classList.remove("open");
+    emojiTarget = null;
+  }
+});
+
+// ── Import from PDF structure (paste-friendly) ──────────────────────────────
+// Users can paste structured text; we parse [NAME]: text patterns
+function importPastedText(text) {
+  const lines = text.split("\n").filter(l => l.trim());
+  const blockLines = [];
+  let currentBlock = null;
+
+  lines.forEach(line => {
+    const blockMatch = line.match(/^BLOQUE\s+\d+/i) || line.match(/^#{1,3}\s+/);
+    if (blockMatch) {
+      if (currentBlock) blockLines.push(currentBlock);
+      currentBlock = { title: line.replace(/^#+\s*/, "").trim(), time:"", lines:[] };
+      return;
+    }
+    if (!currentBlock) currentBlock = { title:"Bloque 1", time:"", lines:[] };
+
+    const speakerMatch = line.match(/^([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]+)\s*:/);
+    if (speakerMatch) {
+      const spName = speakerMatch[1].trim();
+      const text   = line.slice(speakerMatch[0].length).trim();
+      let p = script.participants.find(pp => pp.name.toUpperCase() === spName.toUpperCase());
+      if (!p && script.participants.length < 8) {
+        p = { id:`p${Date.now()}_${spName}`, name: toTitle(spName), colorIdx: script.participants.length % COLORS.length };
+        script.participants.push(p);
+      }
+      if (text) currentBlock.lines.push({ participantId: p?.id, text, type:"line" });
+    } else if (line.match(/^\(.*\)$/)) {
+      currentBlock.lines.push({ text: line.slice(1,-1), type:"note" });
+    } else if (line.trim()) {
+      const p = script.participants?.[activeSpeakerIdx];
+      currentBlock.lines.push({ participantId:p?.id, text:line.trim(), type:"line" });
+    }
+  });
+  if (currentBlock) blockLines.push(currentBlock);
+  return blockLines;
+}
+
+function toTitle(s) { return s.charAt(0) + s.slice(1).toLowerCase(); }
+
+// ══════════════════════════════════════════════════════
+// BLOCK NAV (right panel)
+// ══════════════════════════════════════════════════════
+function renderBlockNav() {
+  const el = document.getElementById("block-nav");
+  if (!script?.blocks?.length) { el.innerHTML = ""; return; }
+  el.innerHTML = script.blocks.map((b, i) =>
+    `<button class="block-nav-btn ${i===activeBlockIdx?"active":""}" onclick="jumpBlock(${i})">
+       <div class="block-nav-num">${i+1}</div>
+       <span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.title||`Bloque ${i+1}`)}</span>
+       ${b.time ? `<span class="block-nav-time">${esc(b.time)}</span>` : ""}
+     </button>`
+  ).join("");
+}
+
+function jumpBlock(idx) {
+  activeBlockIdx = idx;
+  renderBlockNav();
+  send({ type:"jump_block", index: idx });
+}
+
+// ══════════════════════════════════════════════════════
+// SAVE / PUBLISH
+// ══════════════════════════════════════════════════════
+function markDirty() {
+  dirty = true;
+  document.getElementById("save-bar").classList.add("show");
+}
+
+window.addEventListener("beforeunload", e => {
+  if (dirty) { e.preventDefault(); e.returnValue = ""; }
+});
+function hideSaveBar() {
+  dirty = false;
+  document.getElementById("save-bar").classList.remove("show");
+}
+
+function exportScript() {
+  if (!script) { toast("No hay guión activo"); return; }
+  const blob = new Blob([JSON.stringify(script, null, 2)], { type:"application/json" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `${script.title || "guion"}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast("Guión exportado ✓");
+}
+
+async function exportScriptById(id) {
+  // Si ya está cargado en el editor, exportar directamente
+  if (script && (script.id === id || activeScriptId === id)) {
+    exportScript(); return;
+  }
+  // Si no, pedirlo al servidor cargándolo temporalmente
+  // (la forma más limpia es cargarlo en memoria sin cambiar el estado activo)
+  // Como no hay endpoint específico, usamos el truco de leer el fichero JSON guardado
+  try {
+    const res = await fetch(`/scripts/${id}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type:"application/json" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `${data.title || id}.json`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    toast("Guión exportado ✓");
+  } catch { toast("No se pudo exportar el guión"); }
+}
+
+function importScript() {
+  document.getElementById("import-file-input").click();
+}
+
+function onImportFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data.blocks)) {
+        toast("Formato no válido — no parece un guión exportado"); return;
+      }
+      let title = data.title || "Sin título";
+      if (scripts.some(s => s.title === title)) {
+        let n = 1;
+        while (scripts.some(s => s.title === `${title} (${n})`)) n++;
+        title = `${title} (${n})`;
+      }
+      script = { ...data, id: null, title };
+      activeScriptId = null;
+      renderEditor();
+      markDirty();
+      toast(`"${script.title || "Sin título"}" importado ✓`);
+    } catch {
+      toast("Error al leer el fichero JSON");
+    }
+    input.value = "";
+  };
+  reader.readAsText(file, "utf-8");
+}
+
+function saveScript() {
+  if (!script) { toast("Nada que guardar"); return; }
+  send({ type:"save_script", script });
+}
+
+function publishScript() {
+  if (!script) { toast("Carga o crea un guion primero"); return; }
+  if (dirty) saveScript();
+  send({ type:"load_script", id: activeScriptId || script.id });
+  toast("Script enviado al teleprónter ✓");
+}
+
+// ══════════════════════════════════════════════════════
+// TRANSPORT
+// ══════════════════════════════════════════════════════
+function togglePlay() {
+  if (playing) send({ type:"pause" });
+  else         send({ type:"play" });
+}
+
+function syncPlayUI() {
+  const btn = document.getElementById("play-btn");
+  const ico = document.getElementById("play-icon");
+  const lbl = document.getElementById("play-label");
+  btn.classList.toggle("playing", playing);
+  ico.textContent = playing ? "⏸" : "▶";
+  lbl.textContent = playing ? "Pausar" : "Reproducir";
+}
+
+function nudge(delta) {
+  scrollPx = Math.max(0, scrollPx + delta);
+  send({ type:"scroll_to", px: scrollPx });
+}
+
+// ══════════════════════════════════════════════════════
+// SLIDERS
+// ══════════════════════════════════════════════════════
+let speedT, fontT;
+function onSpeed(v) {
+  document.getElementById("speed-val").textContent = v;
+  clearTimeout(speedT);
+  speedT = setTimeout(() => send({ type:"set_speed", value:+v }), 80);
+}
+function onFont(v) {
+  document.getElementById("font-val").textContent = v;
+  clearTimeout(fontT);
+  fontT = setTimeout(() => send({ type:"set_font", value:+v }), 80);
+}
+function syncSliders() {
+  document.getElementById("speed-val").textContent  = speed;
+  document.getElementById("speed-range").value      = speed;
+  document.getElementById("font-val").textContent   = fontSize;
+  document.getElementById("font-range").value       = fontSize;
+  syncConfigTab();
+}
+
+function syncConfigTab() {
+  document.getElementById("cfg-font-val").textContent    = fontSize + " px";
+  document.getElementById("cfg-font-range").value        = fontSize;
+  document.getElementById("cfg-speaker-val").textContent = speakerSize + " %";
+  document.getElementById("cfg-speaker-range").value     = speakerSize;
+  document.getElementById("cfg-note-val").textContent    = noteSize + " %";
+  document.getElementById("cfg-note-range").value        = noteSize;
+  document.getElementById("cfg-speed-val").textContent   = speed;
+  document.getElementById("cfg-speed-range").value       = speed;
+  document.getElementById("cfg-width-val").textContent   = contentWidth + " %";
+  document.getElementById("cfg-width-range").value       = contentWidth;
+  updateConfigPreview();
+}
+
+function updateConfigPreview() {
+  const spSize   = Math.max(fontSize * speakerSize / 100, 10);
+  const noteSize = Math.max(fontSize * 0.42, 14);
+  document.getElementById("cfg-prev-speaker").style.fontSize = spSize + "px";
+  document.getElementById("cfg-prev-text").style.fontSize    = fontSize + "px";
+  document.getElementById("cfg-prev-note").style.fontSize    = noteSize + "px";
+}
+
+function applyConfigFromMsg(cfg) {
+  if (cfg.speakerSize  != null) speakerSize  = cfg.speakerSize;
+  if (cfg.noteSize     != null) noteSize     = cfg.noteSize;
+  if (cfg.contentWidth != null) contentWidth = cfg.contentWidth;
+  if (cfg.hideCursor   != null) { hideCursor   = cfg.hideCursor;   const el=document.getElementById("cfg-hide-cursor"); if(el) el.checked=hideCursor; }
+  if (cfg.showServerIP != null) { showServerIP = cfg.showServerIP; const el=document.getElementById("cfg-show-ip"); if(el) el.checked=showServerIP; }
+  syncConfigTab();
+}
+
+let cfgFontT, cfgSpT;
+function onCfgFont(v) {
+  fontSize = +v;
+  document.getElementById("cfg-font-val").textContent = v + " px";
+  document.getElementById("font-val").textContent = v;
+  document.getElementById("font-range").value = v;
+  updateConfigPreview();
+  clearTimeout(cfgFontT);
+  cfgFontT = setTimeout(() => { send({type:"set_font", value:fontSize}); sendConfig(); }, 80);
+}
+function onCfgSpeaker(v) {
+  speakerSize = +v;
+  document.getElementById("cfg-speaker-val").textContent = v + " %";
+  updateConfigPreview();
+  clearTimeout(cfgSpT);
+  cfgSpT = setTimeout(() => sendConfig(), 80);
+}
+function onCfgNote(v) {
+  noteSize = +v;
+  document.getElementById("cfg-note-val").textContent = v + " %";
+  clearTimeout(cfgSpT);
+  cfgSpT = setTimeout(() => sendConfig(), 80);
+}
+function onCfgHideCursor(v) { hideCursor = v; sendConfig(); }
+function onCfgShowIP(v)     { showServerIP = v; sendConfig(); }
+function saveConfig()  { send({ type:"save_config" }); }
+function resetConfig() { send({ type:"reset_config" }); }
+function onCfgWidth(v) {
+  contentWidth = +v;
+  document.getElementById("cfg-width-val").textContent = v + " %";
+  clearTimeout(cfgSpT);
+  cfgSpT = setTimeout(() => sendConfig(), 80);
+}
+function onCfgSpeed(v) {
+  speed = +v;
+  document.getElementById("cfg-speed-val").textContent = v;
+  document.getElementById("speed-val").textContent = v;
+  document.getElementById("speed-range").value = v;
+  clearTimeout(cfgSpT);
+  cfgSpT = setTimeout(() => send({type:"set_speed", value:speed}), 80);
+}
+function sendConfig() {
+  send({ type:"set_config", config:{ speakerSize, noteSize, contentWidth, hideCursor, showServerIP } });
+}
+
+function switchRTab(name, btn) {
+  document.querySelectorAll(".rpanel-tab").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".rpanel-section").forEach(s => s.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("rtab-" + name).classList.add("active");
+  if (name === "config") syncConfigTab();
+}
+
+// ══════════════════════════════════════════════════════
+// CLOCK
+// ══════════════════════════════════════════════════════
+function applyClock(clk) {
+  if (!clk) return;
+  clockVisible = clk.visible ?? clockVisible;
+  clockItems   = clk.items  || (clk.mode ? [clk.mode] : ["clock"]);
+  timerSec     = clk.timerSec || 600;
+  // Derivar running state del servidor para evitar desincronia
+  chronoStart   = clk.chronoStart ?? chronoStart;
+  chronoElapsed = clk.chronoElapsed ?? chronoElapsed;
+  timerStart    = clk.timerStart ?? timerStart;
+  chronoRunning = clk.chronoStart != null;
+  timerRunning  = clk.timerStart  != null;
+
+  document.getElementById("clock-visible-toggle").classList.toggle("on", clockVisible);
+  document.getElementById("ck-date").checked   = clockItems.includes("date");
+  document.getElementById("ck-clock").checked  = clockItems.includes("clock");
+  document.getElementById("ck-chrono").checked = clockItems.includes("chrono");
+  document.getElementById("ck-timer").checked  = clockItems.includes("timer");
+  updateChronoBtn();
+  updateTimerBtn();
+  syncTimerInputs();
+  showClockControls();
+}
+
+function showClockControls() {
+  document.getElementById("chrono-controls").style.display = clockItems.includes("chrono") ? "block" : "none";
+  document.getElementById("timer-controls").style.display  = clockItems.includes("timer")  ? "block" : "none";
+  const cd = document.getElementById("clock-display");
+  if (cd) cd.style.display = clockItems.includes("clock") ? "block" : "none";
+}
+
+function toggleClockVisible() {
+  clockVisible = !clockVisible;
+  document.getElementById("clock-visible-toggle").classList.toggle("on", clockVisible);
+  sendClockUpdate({ visible: clockVisible });
+}
+
+function toggleClockStudio() {
+  showInStudio = !showInStudio;
+  document.getElementById("clock-studio-toggle").classList.toggle("on", showInStudio);
+  const tc = document.getElementById("topbar-clock");
+  const sep = document.getElementById("topbar-clock-sep");
+  if (!showInStudio) { if(tc) tc.style.display="none"; if(sep) sep.style.display="none"; }
+}
+
+function onClockItems() {
+  clockItems = [];
+  if (document.getElementById("ck-date").checked)   clockItems.push("date");
+  if (document.getElementById("ck-clock").checked)  clockItems.push("clock");
+  if (document.getElementById("ck-chrono").checked) clockItems.push("chrono");
+  if (document.getElementById("ck-timer").checked)  clockItems.push("timer");
+  showClockControls();
+  sendClockUpdate({ items: clockItems });
+}
+
+function applyTimerPreset(minutes) {
+  timerSec = minutes * 60;
+  syncTimerInputs();
+  if (timerRunning) { send({ type:"timer_reset" }); timerRunning = false; }
+  sendClockUpdate({ timerSec });
+  send({ type:"timer_start" });
+}
+
+function sendClockUpdate(partial) {
+  send({ type:"clock_update", clock:{ visible:clockVisible, items:clockItems, timerSec, ...partial } });
+}
+
+// Chrono
+function toggleChrono() {
+  if (chronoRunning) { send({ type:"chrono_stop" }); }
+  else               { send({ type:"chrono_start" }); }
+}
+function resetChrono() { send({ type:"chrono_reset" }); }
+function updateChronoBtn() {
+  const btn = document.getElementById("chrono-btn");
+  if (btn) btn.textContent = chronoRunning ? "⏸ Pausar" : (chronoElapsed > 0 ? "▶ Continuar" : "▶ Iniciar");
+}
+
+// Timer
+function onTimerHMS() {
+  const h = parseInt(document.getElementById("timer-h").value) || 0;
+  const m = parseInt(document.getElementById("timer-m").value) || 0;
+  const s = parseInt(document.getElementById("timer-s").value) || 0;
+  timerSec = Math.max(1, h * 3600 + m * 60 + s);
+  sendClockUpdate({ timerSec });
+}
+function syncTimerInputs() {
+  const h = Math.floor(timerSec / 3600);
+  const m = Math.floor((timerSec % 3600) / 60);
+  const s = timerSec % 60;
+  document.getElementById("timer-h").value = h;
+  document.getElementById("timer-m").value = m;
+  document.getElementById("timer-s").value = s;
+}
+function toggleTimer() {
+  if (timerRunning) { send({ type:"timer_stop" }); }
+  else              { send({ type:"timer_start" }); }
+}
+function resetTimer() { send({ type:"timer_reset" }); }
+function updateTimerBtn() {
+  const btn = document.getElementById("timer-btn");
+  if (btn) btn.textContent = timerRunning ? "⏸ Pausar" : (timerElapsed > 0 ? "▶ Continuar" : "▶ Iniciar");
+}
+
+// Clock tick
+function formatTime(sec) {
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  if (h) return `${h}:${pad(m)}:${pad(s)}`;
+  return `${pad(m)}:${pad(s)}`;
+}
+function pad(n) { return String(n).padStart(2,"0"); }
+
+function chronoValue() {
+  const ms = chronoStart ? Date.now() - chronoStart : chronoElapsed;
+  return formatTime(Math.floor(ms / 1000));
+}
+
+setInterval(() => {
+  const el = document.getElementById("clock-display");
+  const now = new Date();
+  const primary = clockItems[0] || "clock";
+  if (primary === "clock") {
+    el.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    el.classList.remove("warn");
+  } else if (primary === "chrono") {
+    el.textContent = chronoValue();
+    el.classList.remove("warn");
+  } else if (primary === "timer") {
+    if (timerStart) {
+      const rem = Math.max(timerSec - Math.floor((Date.now()-timerStart)/1000), 0);
+      el.textContent = formatTime(rem);
+      el.classList.toggle("warn", rem < 60);
+    } else {
+      el.textContent = formatTime(timerSec);
+      el.classList.remove("warn");
+    }
+  }
+  // Displays individuales por sección
+  const dd = document.getElementById("date-display");
+  if (dd) {
+    const show = clockItems.includes("date");
+    dd.style.display = show ? "block" : "none";
+    if (show) dd.textContent = new Date().toLocaleDateString("es-ES",
+      {weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  }
+  const cd2 = document.getElementById("chrono-display");
+  if (cd2) cd2.textContent = chronoValue();
+  const td2 = document.getElementById("timer-display");
+  if (td2) {
+    const elapsed = timerStart ? Date.now()-timerStart : timerElapsed;
+    const rem = Math.max(timerSec - Math.floor(elapsed/1000), 0);
+    td2.textContent = formatTime(rem);
+    td2.classList.toggle("warn", elapsed > 0 && rem < 60);
+  }
+
+  // Topbar mini-clock
+  const tc  = document.getElementById("topbar-clock");
+  const sep = document.getElementById("topbar-clock-sep");
+  if (tc) {
+    const parts = [];
+    if (showInStudio && clockItems.length) {
+      const now2 = new Date();
+      if (clockItems.includes("date"))   parts.push(`📅 ${now2.toLocaleDateString("es-ES",{day:"numeric",month:"short"})}`);
+      if (clockItems.includes("clock"))  parts.push(`🕐 ${pad(now2.getHours())}:${pad(now2.getMinutes())}`);
+      if (clockItems.includes("chrono")) parts.push(`⏱ ${chronoValue()}${!chronoRunning&&chronoElapsed>0?" ⏸":""}`);
+      if (clockItems.includes("timer")) {
+        const el2 = timerStart ? Date.now()-timerStart : timerElapsed;
+        const rem = Math.max(timerSec-Math.floor(el2/1000),0);
+        parts.push(`⏳ ${formatTime(rem)}${!timerRunning&&timerElapsed>0?" ⏸":""}`);
+      }
+    }
+    const show = parts.length > 0;
+    tc.style.display  = show ? "flex" : "none";
+    if (sep) sep.style.display = show ? "block" : "none";
+    if (show) tc.innerHTML = parts.map(p => `<span>${p}</span>`).join("");
+  }
+}, 500);
+
+// ══════════════════════════════════════════════════════
+// VOICE RECOGNITION
+// ══════════════════════════════════════════════════════
+function toggleVoice() {
+  if (voiceActive) stopVoice(); else startVoice();
+}
+
+function startVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { toast("Tu navegador no soporta reconocimiento de voz"); return; }
+
+  recognition = new SpeechRecognition();
+  recognition.lang = "es-ES";
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  let silenceTimer = null;
+  let lastTranscript = "";
+
+  recognition.onresult = (evt) => {
+    let interim = "";
+    for (let i = evt.resultIndex; i < evt.results.length; i++) {
+      const t = evt.results[i][0].transcript;
+      if (evt.results[i].isFinal) {
+        // Advance on final result
+        send({ type:"voice_advance", lines:1 });
+        lastTranscript = t;
+      } else {
+        interim = t;
+      }
+    }
+    // Reset silence timer
+    clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => {
+      if (playing) send({ type:"voice_advance", lines:1 });
+    }, 1800);
+
+    document.getElementById("voice-status-text").textContent =
+      interim ? `"${interim.slice(-50)}"` : "Escuchando…";
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error !== "no-speech") toast(`Error de voz: ${e.error}`);
+  };
+
+  recognition.onend = () => {
+    if (voiceActive) recognition.start(); // keep alive
+  };
+
+  recognition.start();
+  voiceActive = true;
+  document.getElementById("voice-dot").classList.add("active");
+  document.getElementById("voice-status-text").textContent = "Escuchando…";
+  document.getElementById("voice-btn").textContent = "🔴 Desactivar micrófono";
+}
+
+function stopVoice() {
+  voiceActive = false;
+  if (recognition) { recognition.stop(); recognition = null; }
+  document.getElementById("voice-dot").classList.remove("active");
+  document.getElementById("voice-status-text").textContent = "Inactivo";
+  document.getElementById("voice-btn").textContent = "🎤 Activar micrófono";
+}
+
+// ══════════════════════════════════════════════════════
+// CLIENTS
+// ══════════════════════════════════════════════════════
+function renderClients(list) {
+  const el = document.getElementById("clients-bar");
+  const icons = { teleprompter:"📺", studio:"🎛️", remote:"📱" };
+  el.innerHTML = (list||[]).map(c =>
+    `<span class="client-pill" title="${esc(c.ip||c.role)}">${icons[c.role]||"•"} ${esc(c.name||c.role)}</span>`
+  ).join("");
+}
+
+// ══════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════
+function esc(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ── Update ────────────────────────────────────────────
+async function checkUpdate() {
+  const modal  = document.getElementById("update-modal");
+  const outEl  = document.getElementById("update-output");
+  const rstBtn = document.getElementById("restart-btn");
+  outEl.textContent = "Ejecutando git pull…";
+  rstBtn.style.display = "none";
+  modal.style.display = "flex";
+  try {
+    const r = await fetch("/api/update");
+    const d = await r.json();
+    outEl.textContent = d.output || "(sin salida)";
+    if (d.upToDate) outEl.textContent += "\n\n✅ Ya tienes la última versión.";
+    if (d.needsRestart) rstBtn.style.display = "inline-flex";
+  } catch(e) {
+    outEl.textContent = "Error al conectar con el servidor.\n" + e.message;
+  }
+}
+
+async function doRestart() {
+  document.getElementById("update-output").textContent += "\n\nReiniciando servidor…";
+  document.getElementById("restart-btn").style.display = "none";
+  try { await fetch("/api/restart"); } catch {}
+  // Espera reconexión WS (el servidor se relanza con pm2/systemd)
+  setTimeout(() => location.reload(), 3000);
+}
+
+// ── QR Modal ──────────────────────────────────────────
+let _netInfo = null;
+async function showQRModal(type, e) {
+  e.preventDefault();
+  if (!_netInfo) _netInfo = await fetch("/api/network").then(r => r.json());
+  const info = _netInfo;
+  const base = info.preferredIp ? `http://${info.preferredIp}:3000` : location.origin;
+  const labels = { teleprompter:"Teleprompter", remote:"Mando remoto", editor:"Editor" };
+  const urls   = { teleprompter:`${base}/teleprompter.html`, remote:`${base}/remote.html`, editor:`${base}/` };
+  const svg    = info.qrCodes?.[type] || "";
+  document.getElementById("qr-modal-content").innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:24px 28px 20px;
+                display:flex;flex-direction:column;align-items:center;gap:12px;cursor:default">
+      ${svg ? svg.replace("<svg","<svg width='220' height='220'") : "<p style='color:#333'>Sin IP local</p>"}
+      <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#444">
+        ${labels[type]||type}
+      </div>
+      <div style="font-size:11px;color:#999">${urls[type]||""}</div>
+    </div>`;
+  document.getElementById("qr-modal").style.display = "flex";
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2500);
+}
+</script>
+</body>
+</html>

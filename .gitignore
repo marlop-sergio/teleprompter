@@ -1,0 +1,8 @@
+node_modules/
+config.json
+public/fonts/*.woff2
+public/fonts/fonts.css
+scripts/*.json
+*.log
+.DS_Store
+Thumbs.db

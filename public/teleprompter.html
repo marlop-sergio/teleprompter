@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teleprónter</title>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#080808;
+  --border:#1a1a1a;
+  --muted:#3a3a3a;
+  --dim:#1e1e1e;
+  --white:#f0ede8;
+  --accent:#b8a98a;
+  --radius:10px;
+  --font-size:56px;
+  --speaker-size:0.22em;  /* relative to font-size, configurable */
+  --note-size:0.42em;
+}
+
+html,body{height:100%;background:var(--bg);color:var(--white);
+  font-family:'DM Sans','DM Sans fallback',system-ui,sans-serif;overflow:hidden}
+
+/* ── HUD ── */
+#hud{
+  position:fixed;top:0;left:0;right:0;height:52px;
+  background:rgba(8,8,8,.94);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(10px);
+  display:flex;align-items:center;gap:16px;padding:0 20px;
+  z-index:100;font-size:12px;letter-spacing:.06em;
+}
+.hud-dot{width:7px;height:7px;border-radius:50%;background:#222;transition:background .3s}
+.hud-dot.live{background:#4ade80;box-shadow:0 0 7px #4ade80}
+.hud-participants{display:flex;gap:8px;flex:1;flex-wrap:wrap}
+.hud-badge{padding:2px 10px;border-radius:20px;font-size:11px;font-weight:400;
+  letter-spacing:.05em;opacity:.3;transition:opacity .3s}
+.hud-badge.on{opacity:1}
+#hud-clocks{
+  margin-left:auto;display:flex;flex-direction:row;
+  align-items:center;gap:20px;flex-shrink:0;
+}
+.hud-clock-item{
+  display:flex;align-items:center;gap:5px;
+  font-size:20px;font-weight:300;letter-spacing:.03em;
+  color:var(--accent);font-variant-numeric:tabular-nums;
+  font-family:'DM Sans',system-ui,sans-serif;white-space:nowrap;
+}
+.hud-clock-item .hcl-icon{font-size:13px;opacity:.5;line-height:1;flex-shrink:0}
+.hud-clock-item.warn{color:#f87171}
+/* Fecha: texto más pequeño que los numéricos */
+#hc-date .hcl-val{font-size:14px;letter-spacing:.05em;text-transform:capitalize;opacity:.75}
+
+/* ── Fades ── */
+#fade-top,#fade-bottom{position:fixed;left:0;right:0;pointer-events:none;z-index:50}
+#fade-top{top:52px;height:140px;background:linear-gradient(to bottom,var(--bg) 20%,transparent)}
+#fade-bottom{bottom:0;height:180px;background:linear-gradient(to top,var(--bg) 20%,transparent)}
+
+/* ── Focus line — VISIBLE ── */
+#focus-line{
+  position:fixed;left:0;right:0;top:calc(50% + 26px);
+  height:3px;pointer-events:none;z-index:60;
+  background:linear-gradient(90deg,
+    transparent 0%,
+    rgba(184,169,138,.15) 5%,
+    rgba(184,169,138,.55) 30%,
+    rgba(184,169,138,.55) 70%,
+    rgba(184,169,138,.15) 95%,
+    transparent 100%);
+  box-shadow:0 0 12px 2px rgba(184,169,138,.18), 0 0 40px 0px rgba(184,169,138,.08);
+}
+/* thin glow lines above/below */
+#focus-line::before,#focus-line::after{
+  content:'';position:absolute;left:5%;right:5%;height:1px;
+  background:rgba(184,169,138,.25);
+}
+#focus-line::before{top:-4px}
+#focus-line::after{bottom:-4px}
+
+/* ── Scroll container ── */
+#scroller{position:fixed;top:52px;left:0;right:0;bottom:0;overflow:hidden}
+#content{padding:50vh 10vw;will-change:transform}
+
+/* ── Block ── */
+.block{margin-bottom:4.5em}
+.block-label{
+  font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:1.6em;padding-left:4px;
+  display:flex;align-items:center;gap:10px;
+}
+.block-label::before{content:'';display:block;width:24px;height:1px;background:var(--muted)}
+.block-label::after{content:'';flex:1;height:1px;background:var(--dim)}
+
+/* ── Line ── */
+.script-line{margin-bottom:1.8em;display:flex;flex-direction:column;gap:.3em}
+
+.line-speaker{
+  font-size:var(--speaker-size);
+  font-family:'DM Sans',system-ui,sans-serif;
+  font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+  padding:3px 10px;border-radius:4px;align-self:flex-start;opacity:.8;
+}
+
+.line-text{
+  font-family:'Lora','Lora fallback',Georgia,serif;
+  font-size:var(--font-size);
+  line-height:1.32;
+  padding:14px 22px;
+  border-radius:var(--radius);
+  border-left:5px solid transparent;
+}
+
+/* Notes: relative to main font, clearly readable */
+.line-note{
+  font-family:'DM Sans',system-ui,sans-serif;
+  font-size:var(--note-size);
+  font-style:italic;
+  color:#6a6a6a;
+  padding:6px 22px;
+  border-left:2px solid #2a2a2a;
+  margin-left:4px;
+}
+
+/* ── Empty / Waiting screen ── */
+#empty{
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:0;color:var(--muted);
+  overflow-y:auto;padding:52px 20px 40px;
+  z-index:70; /* por encima de #focus-line (z-index:60) */
+}
+#empty-inner{
+  display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:1100px;
+}
+#empty .big{font-size:48px;opacity:.1;margin-bottom:0}
+#empty .wait-title{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.net-date{font-size:13px;color:var(--muted);letter-spacing:.06em;text-align:center;opacity:.7;margin-bottom:2px}
+#net-info{display:flex;flex-direction:column;align-items:center;gap:1px;margin-bottom:6px}
+.net-ips{margin:2px 0;font-size:15px;color:var(--accent);letter-spacing:.04em;text-align:center}
+.net-no-ip{color:#f87171;font-size:13px;letter-spacing:.06em}
+.qr-row{display:flex;gap:64px;justify-content:center;flex-wrap:wrap;margin-top:28px}
+.qr-card{
+  display:flex;flex-direction:column;align-items:center;gap:16px;
+  background:rgba(255,255,255,.07);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:22px;
+  padding:26px 30px 22px;
+  box-shadow:0 2px 0 rgba(255,255,255,.08) inset,
+             0 16px 48px -8px rgba(0,0,0,.6),
+             0 32px 64px -16px rgba(0,0,0,.4);
+}
+/* El SVG del QR no hereda el blur — sigue perfectamente escaneable */
+.qr-card svg{width:196px;height:196px;display:block;border-radius:6px}
+.qr-card-text{display:flex;flex-direction:column;align-items:center;gap:5px}
+.qr-label{
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  color:rgba(255,255,255,.6);font-weight:700;
+}
+.qr-url{font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.03em}
+
+/* ── Active line highlight ── */
+.script-line.active-line .line-text{
+  box-shadow:0 0 0 1px rgba(184,169,138,.3);
+}
+
+/* ── Flash ── */
+#flash{position:fixed;inset:0;pointer-events:none;z-index:300;
+  background:rgba(255,255,255,.05);opacity:0;transition:opacity .15s}
+#flash.on{opacity:1}
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="hud-dot" id="ws-dot"></div>
+  <div class="hud-participants" id="participants"></div>
+  <div id="hud-server-ip" style="display:none;font-size:11px;color:#888;letter-spacing:.04em"></div>
+  <div id="hud-clocks"></div>
+</div>
+
+<div id="fade-top"></div>
+<div id="fade-bottom"></div>
+<div id="focus-line"></div>
+<div id="scroller"><div id="content"></div></div>
+
+<div id="empty">
+  <div id="empty-inner">
+    <div class="big">🎙️</div>
+    <div class="wait-title">Esperando guion desde el Estudio</div>
+    <div class="net-date" id="net-date"></div>
+    <div id="net-info"></div>
+    <div class="qr-row" id="qr-row"></div>
+  </div>
+</div>
+<div id="flash"></div>
+<div id="tp-powered" style="position:fixed;bottom:8px;right:12px;font-size:10px;letter-spacing:.05em;color:#555;pointer-events:none;z-index:200">
+  Powered by meettheexpert.tech
+</div>
+<script>
+  fetch("/api/network").then(r=>r.json()).then(d=>{
+    const el=document.getElementById("tp-powered");
+    if(el&&d.version) el.textContent=`Powered by meettheexpert.tech · v${d.version}`;
+    const ip=document.getElementById("hud-server-ip");
+    if(ip&&d.preferredIp) ip.textContent=`${d.preferredIp}:${location.port||3000}`;
+  }).catch(()=>{});
+</script>
+
+<script>
+let COLORS=[], script=null, playing=false, speed=45, fontSize=56, speakerSize=22, noteSize=42;
+let scrollPx=0, rafId=null, lastTs=null;
+let clockItems=["clock"], clockVisible=false, chronoStart=null, chronoElapsed=0, timerStart=null, timerElapsed=0, timerSec=600;
+
+const contentEl  = document.getElementById("content");
+const emptyEl    = document.getElementById("empty");
+const flashEl    = document.getElementById("flash");
+const root       = document.documentElement;
+
+
+// ── WebSocket ──────────────────────────────────────────────────────────────
+let ws;
+function connectWS(){
+  ws = new WebSocket(`ws://${location.host}`);
+  ws.onopen = () => {
+    document.getElementById("ws-dot").classList.add("live");
+    ws.send(JSON.stringify({type:"register",role:"teleprompter",name:"Teleprónter"}));
+  };
+  ws.onclose = () => {
+    document.getElementById("ws-dot").classList.remove("live");
+    setTimeout(connectWS, 2000);
+  };
+  ws.onmessage = ({data}) => {
+  const msg = JSON.parse(data);
+  switch(msg.type){
+    case "init":
+      COLORS = msg.colors;
+      if(msg.script) loadScript(msg.script);
+      applyPlayhead(msg.playhead);
+      if(msg.config) applyConfig(msg.config);
+      applyClock(msg.clock);
+      break;
+    case "script_loaded":
+      msg.script ? loadScript(msg.script) : renderEmpty();
+      scrollPx=0; stopScroll(); applyScroll();
+      break;
+    case "play":        playing=true;  flash(); startScroll(); break;
+    case "pause":       playing=false; stopScroll(); break;
+    case "reset":       playing=false; scrollPx=0; stopScroll(); applyScroll(); break;
+    case "scroll_to":   smoothScrollTo(msg.px??scrollPx, 150); break;
+    case "jump_block":  jumpToBlock(msg.index); break;
+    case "set_speed":   speed=msg.value; break;
+    case "set_font":    fontSize=msg.value; applyFontVars(); break;
+    case "set_config":  applyConfig(msg.config); break;
+    case "voice_advance": voiceAdvance(msg.lines); break;
+    case "clock_update":  applyClock(msg.clock); break;
+    case "chrono_start":  chronoStart=msg.at; chronoElapsed=0; renderHUDClocks(); break;
+    case "chrono_stop":   chronoStart=null; chronoElapsed=msg.elapsed; break;
+    case "chrono_reset":  chronoStart=null; chronoElapsed=0; break;
+    case "jump_line":     jumpToLine(msg.blockIndex, msg.lineIndex); break;
+    case "timer_start":   timerStart=msg.at; timerElapsed=0; timerSec=msg.sec; renderHUDClocks(); break;
+    case "timer_stop":    timerStart=null; timerElapsed=msg.elapsed; break;
+    case "timer_reset":   timerStart=null; timerElapsed=0; break;
+    case "patch_line": {
+      const blockEl=contentEl.querySelector(`[data-block="${msg.blockIndex}"]`);
+      if(blockEl){
+        const lineEl=blockEl.querySelector(`[data-line="${msg.lineIndex}"]`);
+        if(lineEl){const tx=lineEl.querySelector(".line-text"); if(tx) tx.textContent=msg.text;}
+        if(script?.blocks[msg.blockIndex]?.lines[msg.lineIndex]!=null)
+          script.blocks[msg.blockIndex].lines[msg.lineIndex].text=msg.text;
+      }
+      break;
+    }
+  }
+  };
+}
+connectWS();
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function loadScript(sc){
+  script=sc; emptyEl.style.display="none"; contentEl.innerHTML="";
+  (sc.blocks||[]).forEach((block,bi)=>{
+    const blockEl=document.createElement("div");
+    blockEl.className="block"; blockEl.dataset.block=bi;
+    const lbl=document.createElement("div");
+    lbl.className="block-label";
+    lbl.textContent=(block.title||`Bloque ${bi+1}`)+(block.time?`  ·  ${block.time}`:"");
+    blockEl.appendChild(lbl);
+    (block.lines||[]).forEach((line,li)=>{
+      const lineEl=document.createElement("div");
+      lineEl.className="script-line"; lineEl.dataset.line=li;
+      if(line.type==="note"){
+        const n=document.createElement("div");
+        n.className="line-note"; n.textContent=line.text; lineEl.appendChild(n);
+      } else {
+        const pidx=(sc.participants||[]).findIndex(p=>p.id===line.participantId);
+        const p=(sc.participants||[])[pidx>=0?pidx:0];
+        const color=COLORS[p?.colorIdx??(pidx>=0?pidx:0)]||COLORS[0];
+        if(p){
+          const sp=document.createElement("div");
+          sp.className="line-speaker";
+          sp.style.cssText=`background:${color.bg}28;color:${color.bg};`;
+          sp.textContent=p.name; lineEl.appendChild(sp);
+        }
+        const tx=document.createElement("div");
+        tx.className="line-text";
+        tx.style.cssText=`color:${color.bg};border-left-color:${color.bg}55;background:${color.bg}0d;`;
+        tx.textContent=line.text; lineEl.appendChild(tx);
+      }
+      blockEl.appendChild(lineEl);
+    });
+    contentEl.appendChild(blockEl);
+  });
+  applyFontVars();
+  renderHUDParticipants(sc.participants||[]);
+}
+
+function renderEmpty(){ contentEl.innerHTML=""; emptyEl.style.display="flex"; }
+
+function applyFontVars(){
+  root.style.setProperty("--font-size", fontSize+"px");
+  root.style.setProperty("--note-size", Math.max(fontSize*noteSize/100,12)+"px");
+  root.style.setProperty("--speaker-size", Math.max(fontSize*speakerSize/100,12)+"px");
+}
+
+function applyConfig(cfg){
+  if(cfg.speakerSize!=null){ speakerSize=cfg.speakerSize; applyFontVars(); }
+  if(cfg.noteSize!=null){    noteSize=cfg.noteSize;       applyFontVars(); }
+  if(cfg.contentWidth!=null){
+    const side=(100-cfg.contentWidth)/2;
+    contentEl.style.paddingLeft=side+"vw"; contentEl.style.paddingRight=side+"vw";
+  }
+  if(cfg.hideCursor!=null) document.body.style.cursor=cfg.hideCursor?"none":"";
+  if(cfg.showServerIP!=null){
+    const el=document.getElementById("hud-server-ip");
+    if(el) el.style.display=cfg.showServerIP?"":"none";
+  }
+}
+
+function jumpToLine(bi, li){
+  const blockEl=contentEl.querySelector(`[data-block="${bi}"]`);
+  if(!blockEl) return;
+  const lineEl=blockEl.querySelector(`[data-line="${li}"]`);
+  const target=lineEl||blockEl;
+  const ct=contentEl.getBoundingClientRect().top;
+  const tt=target.getBoundingClientRect().top;
+  const vh=document.getElementById("scroller").offsetHeight;
+  smoothScrollTo(Math.max(0, tt-ct-vh*0.5));
+}
+
+function renderHUDParticipants(participants){
+  document.getElementById("participants").innerHTML=
+    participants.map((p,i)=>{
+      const c=COLORS[p.colorIdx??i]||COLORS[0];
+      return `<span class="hud-badge on" style="background:${c.bg}22;color:${c.bg}">${p.name}</span>`;
+    }).join("");
+}
+
+function applyPlayhead(ph){
+  if(!ph) return;
+  speed=ph.speed; fontSize=ph.fontSize; playing=ph.playing; scrollPx=ph.scrollPx;
+  if(ph.speakerSize!=null) speakerSize=ph.speakerSize;
+  applyFontVars(); applyScroll();
+  if(playing) startScroll();
+}
+
+function applyClock(clk){
+  if(!clk) return;
+  clockItems  = clk.items || (clk.mode?[clk.mode]:["clock"]);
+  clockVisible= clk.visible??clockVisible;
+  timerSec    = clk.timerSec||600;
+  if(clk.chronoStart!=null) chronoStart=clk.chronoStart;
+  if(clk.timerStart!=null)  timerStart=clk.timerStart;
+  renderHUDClocks();
+}
+
+// ── Scroll ─────────────────────────────────────────────────────────────────
+function applyScroll(){ contentEl.style.transform=`translateY(${-scrollPx}px)`; }
+
+// Animación suave ease-in-out para saltos
+let _smoothRaf = null;
+function smoothScrollTo(target, duration=320){
+  if(_smoothRaf){ cancelAnimationFrame(_smoothRaf); _smoothRaf=null; }
+  const start = scrollPx;
+  const diff  = target - start;
+  if(Math.abs(diff) < 1){ scrollPx=target; applyScroll(); return; }
+  const t0 = performance.now();
+  function step(now){
+    const p = Math.min((now-t0)/duration, 1);
+    const ease = p<0.5 ? 2*p*p : -1+(4-2*p)*p; // ease-in-out cuadrático
+    scrollPx = start + diff*ease;
+    applyScroll();
+    if(p<1){ _smoothRaf=requestAnimationFrame(step); }
+    else   { scrollPx=target; applyScroll(); _smoothRaf=null; updateActiveLine(); }
+  }
+  _smoothRaf=requestAnimationFrame(step);
+}
+
+function jumpToBlock(idx){
+  const el=contentEl.querySelector(`[data-block="${idx}"]`);
+  if(el){
+    const ct=contentEl.getBoundingClientRect().top;
+    const bt=el.getBoundingClientRect().top;
+    const vh=document.getElementById("scroller").offsetHeight;
+    smoothScrollTo(Math.max(0, bt-ct-vh*0.18));
+  }
+}
+
+let lastActiveLine = null;
+let lastSyncLineKey = null;
+function updateActiveLine(){
+  const focusY = window.innerHeight * 0.5 + 26;
+  let best = null, bestDist = Infinity;
+  contentEl.querySelectorAll(".script-line").forEach(el => {
+    const r = el.getBoundingClientRect();
+    const dist = Math.abs(r.top + r.height/2 - focusY);
+    if(dist < bestDist){ bestDist=dist; best=el; }
+  });
+  if(best !== lastActiveLine){
+    if(lastActiveLine) lastActiveLine.classList.remove("active-line");
+    if(best) best.classList.add("active-line");
+    lastActiveLine = best;
+    if(best && ws?.readyState===1){
+      const blockEl = best.closest("[data-block]");
+      const bi = blockEl ? parseInt(blockEl.dataset.block) : 0;
+      const li = parseInt(best.dataset.line ?? 0);
+      const key = `${bi}:${li}`;
+      if(key !== lastSyncLineKey){
+        lastSyncLineKey = key;
+        ws.send(JSON.stringify({type:"sync_line", blockIndex:bi, lineIndex:li}));
+      }
+    }
+  }
+}
+
+function startScroll(){
+  // Cancela cualquier animación previa — evita que un rafId obsoleto bloquee el arranque
+  if(_smoothRaf){ cancelAnimationFrame(_smoothRaf); _smoothRaf=null; }
+  if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
+  lastTs=null; rafId=requestAnimationFrame(tick);
+}
+function stopScroll(){
+  if(rafId){ cancelAnimationFrame(rafId); rafId=null; } lastTs=null;
+}
+function tick(ts){
+  if(!playing){rafId=null;return;}
+  if(!lastTs) lastTs=ts;
+  const dt=(ts-lastTs)/1000; lastTs=ts;
+  // Si hay un salto animado en curso, no avanzar el scroll automático para no pisar
+  if(!_smoothRaf){ scrollPx+=speed*dt; applyScroll(); }
+  updateActiveLine();
+  // Auto-stop cuando la última línea pasa el cursor de foco
+  const lastLine = contentEl.querySelector(".script-line:last-child");
+  if(lastLine){
+    const focusY = window.innerHeight*0.5+26;
+    if(lastLine.getBoundingClientRect().bottom < focusY){
+      playing=false; stopScroll();
+      ws?.readyState===1 && ws.send(JSON.stringify({type:"pause"}));
+      return;
+    }
+  }
+  if(Math.round(ts/300)!==Math.round((ts-dt*1000)/300)){
+    ws.readyState===1&&ws.send(JSON.stringify({type:"sync_scroll",px:scrollPx}));
+  }
+  rafId=requestAnimationFrame(tick);
+}
+
+function voiceAdvance(lines){
+  scrollPx+=fontSize*1.85*(lines||1); applyScroll();
+  ws.readyState===1&&ws.send(JSON.stringify({type:"sync_scroll",px:scrollPx}));
+}
+
+function flash(){
+  flashEl.classList.add("on"); setTimeout(()=>flashEl.classList.remove("on"),200);
+}
+
+// ── Network info / QR codes ────────────────────────────────────────────────
+(async () => {
+  try {
+    const info = await fetch("/api/network").then(r => r.json());
+    const netEl  = document.getElementById("net-info");
+    const qrEl   = document.getElementById("qr-row");
+    const dateEl = document.getElementById("net-date");
+    if (dateEl) dateEl.textContent = new Date().toLocaleDateString("es-ES",
+      { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+    if (!info.preferredIp) {
+      netEl.innerHTML = `<div class="net-no-ip">⚠ No se detectó IP de red local</div>`;
+      return;
+    }
+    const base = `http://${info.preferredIp}:${location.port||3000}`;
+    netEl.innerHTML = info.allIps.map(ip =>
+      `<div class="net-ips">${ip}:${location.port||3000}</div>`
+    ).join("");
+    const cards = [
+      { svg: info.qrCodes.editor,        label: "EDITOR",                 url: base + "/" },
+      { svg: info.qrCodes.remote,        label: "Mando remoto",            url: base + "/remote.html" },
+      { svg: info.qrCodes.teleprompter,  label: "Teleprompter secundario", url: base + "/teleprompter.html" },
+    ];
+    qrEl.innerHTML = cards.map(c =>
+      `<div class="qr-card">${c.svg}<div class="qr-card-text"><div class="qr-label">${c.label}</div><div class="qr-url">${c.url}</div></div></div>`
+    ).join("");
+  } catch(e) {}
+})();
+
+// ── Clock ──────────────────────────────────────────────────────────────────
+function pad(n){return String(n).padStart(2,"0")}
+function fmtTime(s){
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;
+  return h?`${h}:${pad(m)}:${pad(sc)}`:`${pad(m)}:${pad(sc)}`;
+}
+
+function fmtDate(){
+  return new Date().toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"});
+}
+
+function currentClockVal(){
+  const n=new Date();
+  return `${pad(n.getHours())}:${pad(n.getMinutes())}`;
+}
+function currentChronoVal(){
+  const ms=chronoStart?Date.now()-chronoStart:chronoElapsed;
+  return fmtTime(Math.floor(ms/1000));
+}
+function currentTimerVal(){
+  const elapsed=timerStart?Date.now()-timerStart:timerElapsed;
+  return fmtTime(Math.max(timerSec-Math.floor(elapsed/1000),0));
+}
+
+function renderHUDClocks(){
+  const el=document.getElementById("hud-clocks");
+  if(!clockVisible||!clockItems.length){el.innerHTML="";return;}
+  el.innerHTML=clockItems.map(item=>{
+    if(item==="date")   return `<div class="hud-clock-item" id="hc-date"><span class="hcl-icon">📅</span><span class="hcl-val" id="hcv-date">${fmtDate()}</span></div>`;
+    if(item==="clock")  return `<div class="hud-clock-item" id="hc-clock"><span class="hcl-icon">🕐</span><span class="hcl-val" id="hcv-clock">${currentClockVal()}</span></div>`;
+    if(item==="chrono") return `<div class="hud-clock-item" id="hc-chrono"><span class="hcl-icon">⏱</span><span class="hcl-val" id="hcv-chrono">${currentChronoVal()}</span></div>`;
+    if(item==="timer")  return `<div class="hud-clock-item" id="hc-timer"><span class="hcl-icon">⏳</span><span class="hcl-val" id="hcv-timer">${currentTimerVal()}</span></div>`;
+    return "";
+  }).join("");
+}
+
+setInterval(()=>{
+  if(!clockVisible) return;
+  const now=new Date();
+  if(clockItems.includes("date")){
+    const el=document.getElementById("hcv-date");
+    if(el) el.textContent=fmtDate();
+  }
+  if(clockItems.includes("clock")){
+    const el=document.getElementById("hcv-clock");
+    if(el) el.textContent=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }
+  if(clockItems.includes("chrono")){
+    const el=document.getElementById("hcv-chrono");
+    if(el){
+      const ms=chronoStart?Date.now()-chronoStart:chronoElapsed;
+      el.textContent=fmtTime(Math.floor(ms/1000));
+    }
+  }
+  if(clockItems.includes("timer")){
+    const itemEl=document.getElementById("hc-timer");
+    const el=document.getElementById("hcv-timer");
+    if(el){
+      const elapsed = timerStart ? Date.now()-timerStart : timerElapsed;
+      const rem = Math.max(timerSec-Math.floor(elapsed/1000),0);
+      el.textContent=fmtTime(rem);
+      if(itemEl) itemEl.classList.toggle("warn", elapsed>0 && rem<60);
+    }
+  }
+},500);
+</script>
+</body>
+</html>

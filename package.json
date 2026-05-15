@@ -1,0 +1,14 @@
+{
+  "name": "teleprompter-pro",
+  "version": "2.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "node download-fonts.js"
+  },
+  "dependencies": {
+    "ws": "^8.17.0",
+    "qrcode": "^1.5.4"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

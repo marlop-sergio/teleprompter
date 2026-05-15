@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Mando · Teleprónter</title>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0c0f;--s1:#111318;--s2:#181b22;--s3:#1e2229;
+  --border:#252830;--muted:#55606e;--text:#dde1ea;--text2:#8a94a6;
+  --accent:#7c9fff;--green:#5eead4;--red:#fb7185;
+}
+html{height:100%;/* No touch-action here - handled per-element */}
+body{
+  min-height:100%;background:var(--bg);color:var(--text);
+  font-family:'Figtree','Figtree fallback',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;
+  padding-bottom:env(safe-area-inset-bottom,16px);
+  /* Prevent all browser gestures on body */
+  touch-action:manipulation;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+/* ── Header ── */
+header{
+  background:var(--s1);border-bottom:1px solid var(--border);
+  padding:14px 18px;display:flex;align-items:center;gap:10px;flex-shrink:0;
+  /* No touch-action override here - manipulation from body is fine */
+}
+header h1{font-size:14px;font-weight:700;letter-spacing:.04em}
+.conn{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)}
+.conn .dot{width:6px;height:6px;border-radius:50%;background:#333}
+.conn .dot.live{background:var(--green);box-shadow:0 0 5px var(--green)}
+
+/* ── Login ── */
+#login{padding:28px 20px;display:flex;flex-direction:column;gap:16px}
+#login h2{font-size:22px;font-weight:800}
+#login p{font-size:13px;color:var(--text2);line-height:1.5}
+.field-lbl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+input[type=text]{
+  width:100%;background:var(--s2);border:1.5px solid var(--border);border-radius:10px;
+  padding:13px 14px;font-family:'Figtree',system-ui,sans-serif;font-size:16px;color:var(--text);
+  outline:none;-webkit-appearance:none;transition:border-color .2s;
+  touch-action:manipulation;
+  -webkit-user-select:text;user-select:text; /* re-allow for inputs */
+}
+input[type=text]:focus{border-color:var(--accent)}
+input::placeholder{color:var(--muted)}
+
+/* ── Buttons ── */
+/* Key: touch-action:manipulation disables double-tap zoom on ALL buttons */
+.btn-tap{
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+  cursor:pointer;
+  border:none;
+  background:transparent;
+}
+.btn-primary{
+  width:100%;padding:16px;background:var(--accent);color:#0b0c0f;
+  border-radius:12px;font-family:'Figtree',system-ui,sans-serif;
+  font-size:16px;font-weight:700;transition:opacity .15s,transform .1s;
+}
+.btn-primary:active{opacity:.85;transform:scale(.98)}
+.btn-primary:disabled{opacity:.3;pointer-events:none}
+
+/* ── Controls ── */
+#controls{display:none;flex-direction:column;flex:1}
+
+.user-tag{
+  display:flex;align-items:center;gap:8px;
+  margin:14px 16px;padding:10px 14px;border-radius:10px;
+  font-size:13px;font-weight:600;
+}
+.user-tag .dot{width:8px;height:8px;border-radius:50%}
+
+/* PLAY BIG */
+.play-zone{padding:16px}
+.btn-play{
+  width:100%;padding:28px;border-radius:16px;
+  font-family:'Figtree',system-ui,sans-serif;font-size:18px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:all .12s;
+  background:rgba(94,234,212,.12);border:1.5px solid rgba(94,234,212,.25);color:var(--green);
+}
+.btn-play:active{transform:scale(.96)}
+.btn-play.playing{background:rgba(251,113,133,.1);border-color:rgba(251,113,133,.22);color:var(--red)}
+.btn-play .icon{font-size:32px;line-height:1}
+
+/* Secondary transport */
+.btns-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 16px 16px}
+.btn-sec{
+  padding:18px 8px;border-radius:12px;background:var(--s2);border:1px solid var(--border);
+  color:var(--text2);font-family:'Figtree',system-ui,sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:.05em;text-transform:uppercase;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  transition:all .12s;
+}
+.btn-sec:active{transform:scale(.94);background:var(--s3)}
+.btn-sec .icon{font-size:24px;line-height:1}
+
+/* Scroll pad */
+.scroll-zone{
+  flex:1;margin:0 16px 16px;border-radius:16px;
+  background:var(--s1);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:8px;min-height:160px;
+  position:relative;overflow:hidden;
+  /* scroll pad needs its own touch-action for drag */
+  touch-action:none;
+}
+.scroll-zone-hint{font-size:12px;color:var(--muted);pointer-events:none;letter-spacing:.05em;text-transform:uppercase}
+.scroll-zone-icon{font-size:36px;opacity:.15;pointer-events:none}
+.scroll-track{position:absolute;right:12px;top:10%;bottom:10%;width:4px;background:var(--border);border-radius:2px}
+.scroll-thumb{position:absolute;width:4px;border-radius:2px;background:var(--accent);opacity:.6;top:0;height:40%}
+
+/* Blocks */
+.blocks-section{padding:0 16px 16px}
+.blocks-lbl{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+#blocks-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;touch-action:pan-x}
+#blocks-scroll::-webkit-scrollbar{display:none}
+.block-chip{
+  flex-shrink:0;padding:8px 14px;border-radius:20px;
+  background:var(--s2);border:1px solid var(--border);
+  color:var(--text2);font-size:12px;font-weight:500;
+  white-space:nowrap;transition:all .12s;
+}
+.block-chip:active{transform:scale(.95)}
+.block-chip.active{background:rgba(124,159,255,.12);border-color:var(--accent);color:var(--accent)}
+
+/* Speed */
+.speed-section{padding:0 16px 16px}
+.speed-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.speed-lbl{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.06em;text-transform:uppercase}
+.speed-val{font-size:18px;font-weight:700;color:var(--accent)}
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:6px;border-radius:3px;
+  background:var(--border);outline:none;border:none;padding:0;
+  touch-action:pan-x; /* allow horizontal slide only */
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:28px;height:28px;border-radius:50%;
+  background:var(--accent);box-shadow:0 2px 8px rgba(124,159,255,.35);cursor:pointer;
+}
+
+/* Toast */
+#toast{
+  position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;
+  transform:translateX(-50%) translateY(80px);
+  background:var(--s2);border:1px solid var(--border);color:var(--text);
+  padding:10px 20px;border-radius:30px;font-size:13px;font-weight:500;
+  white-space:nowrap;transition:transform .3s cubic-bezier(.34,1.56,.64,1);z-index:999;
+  pointer-events:none;
+}
+#toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<header>
+  <span>📱</span>
+  <h1>Mando</h1>
+  <div class="conn">
+    <div class="dot" id="ws-dot"></div>
+    <span id="ws-label">Desconectado</span>
+  </div>
+</header>
+
+<!-- Login -->
+<div id="login">
+  <div>
+    <h2>Control remoto</h2>
+    <p style="margin-top:6px">Acceso rápido al teleprónter.</p>
+  </div>
+  <div>
+    <div class="field-lbl">Tu nombre</div>
+    <input type="text" id="name-input" placeholder="Ej: Lourdes"
+           autocomplete="off" autocorrect="off" spellcheck="false">
+  </div>
+  <button class="btn-tap btn-primary" onclick="joinSession()">Entrar</button>
+</div>
+
+<!-- Controls -->
+<div id="controls">
+  <div class="user-tag" id="user-tag"></div>
+
+  <div class="play-zone">
+    <button class="btn-tap btn-play" id="play-btn" onclick="togglePlay()">
+      <span class="icon" id="play-icon">▶</span>
+      <span id="play-label">Reproducir</span>
+    </button>
+  </div>
+
+  <div class="btns-row">
+    <button class="btn-tap btn-sec" onclick="doReset()">
+      <span class="icon">⏮</span><span>Inicio</span>
+    </button>
+    <button class="btn-tap btn-sec" onclick="nudge(-300)">
+      <span class="icon">↑</span><span>Subir</span>
+    </button>
+    <button class="btn-tap btn-sec" onclick="nudge(300)">
+      <span class="icon">↓</span><span>Bajar</span>
+    </button>
+  </div>
+
+  <div class="blocks-section" id="blocks-section" style="display:none">
+    <div class="blocks-lbl">Saltar a bloque</div>
+    <div id="blocks-scroll"></div>
+  </div>
+
+  <div class="scroll-zone" id="scroll-zone">
+    <div class="scroll-zone-icon">↕</div>
+    <div class="scroll-zone-hint">Arrastra para desplazar</div>
+    <div class="scroll-track"><div class="scroll-thumb" id="scroll-thumb"></div></div>
+  </div>
+
+  <div class="speed-section">
+    <div class="speed-header">
+      <span class="speed-lbl">Velocidad</span>
+      <span class="speed-val" id="speed-val">45</span>
+    </div>
+    <input type="range" id="speed-range" min="5" max="200" value="45" oninput="onSpeed(this.value)">
+  </div>
+</div>
+
+<div id="toast"></div>
+<div style="position:fixed;bottom:8px;right:12px;font-size:10px;letter-spacing:.05em;color:var(--text2);opacity:.6;pointer-events:none">
+  Powered by meettheexpert.tech
+</div>
+
+<script>
+let ws, myName="", playing=false, speed=45, scrollPx=0, activeBlock=0;
+let COLORS=[
+  {bg:"#FFB3B3"},{bg:"#FFD4A0"},{bg:"#FFF4A0"},{bg:"#AEFFCC"},
+  {bg:"#A0DEFF"},{bg:"#A0AAFF"},{bg:"#CCA0FF"},{bg:"#FFB3E8"},
+];
+
+// ── Prevent double-tap zoom globally (belt + suspenders) ──────────────────
+let lastTap=0;
+document.addEventListener("touchend", e => {
+  // Only prevent if target is NOT an input/textarea/select (those need normal taps)
+  if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA"||e.target.tagName==="SELECT") return;
+  const now=Date.now();
+  if(now-lastTap<350){ e.preventDefault(); }
+  lastTap=now;
+}, {passive:false});
+
+// ── Login ──────────────────────────────────────────────────────────────────
+document.getElementById("name-input").addEventListener("keydown", e=>{
+  if(e.key==="Enter") joinSession();
+});
+
+function joinSession(){
+  const name=document.getElementById("name-input").value.trim();
+  if(!name){toast("Escribe tu nombre");return;}
+  myName=name; connectWS();
+}
+
+// ── WS ─────────────────────────────────────────────────────────────────────
+function connectWS(){
+  ws=new WebSocket(`ws://${location.host}`);
+  ws.onopen=()=>{
+    document.getElementById("ws-dot").classList.add("live");
+    document.getElementById("ws-label").textContent="Conectado";
+    ws.send(JSON.stringify({type:"register",role:"remote",name:myName}));
+    showControls();
+  };
+  ws.onclose=()=>{
+    document.getElementById("ws-dot").classList.remove("live");
+    document.getElementById("ws-label").textContent="Reconectando…";
+    setTimeout(connectWS,2000);
+  };
+  ws.onmessage=({data})=>{
+    const msg=JSON.parse(data);
+    switch(msg.type){
+      case "init":
+        if(msg.colors) COLORS=msg.colors;
+        speed=msg.playhead?.speed||45;
+        playing=msg.playhead?.playing||false;
+        scrollPx=msg.playhead?.scrollPx||0;
+        syncPlayBtn(); syncSlider(speed); updateThumb();
+        if(msg.script) renderBlocks(msg.script);
+        break;
+      case "script_loaded": if(msg.script) renderBlocks(msg.script); break;
+      case "play":        playing=true;  syncPlayBtn(); break;
+      case "pause":       playing=false; syncPlayBtn(); break;
+      case "reset":       playing=false; scrollPx=0; syncPlayBtn(); updateThumb(); break;
+      case "set_speed":   speed=msg.value; syncSlider(speed); break;
+      case "scroll_to":   scrollPx=msg.px??scrollPx; updateThumb(); break;
+      case "sync_scroll": scrollPx=msg.px; updateThumb(); break;
+      case "jump_block":  activeBlock=msg.index; renderBlockChips(); break;
+    }
+  };
+}
+
+function send(obj){ ws?.readyState===1&&ws.send(JSON.stringify(obj)); }
+
+function showControls(){
+  document.getElementById("login").style.display="none";
+  document.getElementById("controls").style.display="flex";
+  initScrollPad();
+  let hash=0;
+  for(let c of myName) hash=(hash*31+c.charCodeAt(0))&0xffff;
+  const color=COLORS[hash%COLORS.length];
+  const tag=document.getElementById("user-tag");
+  tag.style.background=color.bg+"18"; tag.style.color=color.bg;
+  tag.innerHTML=`<span class="dot" style="background:${color.bg}"></span>${myName}`;
+}
+
+// ── Blocks ─────────────────────────────────────────────────────────────────
+function renderBlocks(script){
+  const sec=document.getElementById("blocks-section");
+  const el=document.getElementById("blocks-scroll");
+  if(!script?.blocks?.length){sec.style.display="none";return;}
+  sec.style.display="block";
+  el.innerHTML=script.blocks.map((b,i)=>
+    `<div class="btn-tap block-chip ${i===activeBlock?"active":""}" onclick="jumpBlock(${i})">${esc(b.title||`B${i+1}`)}</div>`
+  ).join("");
+}
+
+function renderBlockChips(){
+  document.querySelectorAll(".block-chip").forEach((el,i)=>{
+    el.classList.toggle("active",i===activeBlock);
+  });
+}
+
+function jumpBlock(idx){ activeBlock=idx; renderBlockChips(); send({type:"jump_block",index:idx}); }
+
+// ── Transport ──────────────────────────────────────────────────────────────
+function togglePlay(){
+  if(playing) send({type:"pause"}); else send({type:"play"});
+}
+function doReset(){ scrollPx=0; send({type:"reset"}); updateThumb(); }
+
+function syncPlayBtn(){
+  document.getElementById("play-btn").classList.toggle("playing",playing);
+  document.getElementById("play-icon").textContent=playing?"⏸":"▶";
+  document.getElementById("play-label").textContent=playing?"Pausar":"Reproducir";
+}
+
+// nudge uses local scrollPx (kept in sync via sync_scroll/scroll_to messages)
+function nudge(delta){
+  scrollPx=Math.max(0,scrollPx+delta);
+  send({type:"scroll_to",px:scrollPx});
+  updateThumb();
+}
+
+// ── Speed ──────────────────────────────────────────────────────────────────
+let speedT;
+function onSpeed(v){
+  document.getElementById("speed-val").textContent=v;
+  clearTimeout(speedT);
+  speedT=setTimeout(()=>send({type:"set_speed",value:+v}),80);
+}
+function syncSlider(v){
+  document.getElementById("speed-val").textContent=v;
+  document.getElementById("speed-range").value=v;
+}
+
+// ── Scroll pad ─────────────────────────────────────────────────────────────
+function initScrollPad(){
+  const zone=document.getElementById("scroll-zone");
+  let startY=0, startScroll=0, dragging=false, sendT=null;
+
+  function onStart(e){
+    dragging=true;
+    startY=e.touches?e.touches[0].clientY:e.clientY;
+    startScroll=scrollPx;
+    e.preventDefault();
+  }
+  function onMove(e){
+    if(!dragging) return;
+    const y=e.touches?e.touches[0].clientY:e.clientY;
+    const diff=(y-startY)*4;
+    scrollPx=Math.max(0,startScroll+diff);
+    updateThumb();
+    clearTimeout(sendT);
+    sendT=setTimeout(()=>send({type:"scroll_to",px:scrollPx}),40);
+    e.preventDefault();
+  }
+  function onEnd(){ dragging=false; }
+
+  zone.addEventListener("touchstart",onStart,{passive:false});
+  zone.addEventListener("touchmove", onMove, {passive:false});
+  zone.addEventListener("touchend",  onEnd);
+  zone.addEventListener("mousedown", onStart);
+  window.addEventListener("mousemove",onMove);
+  window.addEventListener("mouseup",  onEnd);
+}
+
+function updateThumb(){
+  const t=document.getElementById("scroll-thumb");
+  if(!t) return;
+  t.style.top=(Math.min(scrollPx/8000,1)*60)+"%";
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+let toastT;
+function toast(msg){
+  const el=document.getElementById("toast");
+  el.textContent=msg; el.classList.add("show");
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove("show"),2200);
+}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+</script>
+</body>
+</html>
