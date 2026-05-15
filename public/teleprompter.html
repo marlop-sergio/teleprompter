@@ -646,6 +646,7 @@ function flash(){
 // ── Clock ──────────────────────────────────────────────────────────────────
 function pad(n){return String(n).padStart(2,"0")}
 function fmtTime(s){
+  s=Math.max(0,Math.floor(s));
   const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;
   return h?`${h}:${pad(m)}:${pad(sc)}`:`${pad(m)}:${pad(sc)}`;
 }
@@ -660,7 +661,7 @@ function currentClockVal(){
 }
 function currentChronoVal(){
   const ms=chronoStart?Date.now()-chronoStart:chronoElapsed;
-  return fmtTime(Math.floor(ms/1000));
+  return fmtTime(Math.max(0,ms)/1000);
 }
 function currentTimerVal(){
   const elapsed=timerStart?Date.now()-timerStart:timerElapsed;
