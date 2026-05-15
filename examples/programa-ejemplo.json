@@ -1,0 +1,44 @@
+{
+  "title": "Programa de ejemplo",
+  "participants": [
+    { "id": "p1", "name": "Lourdes", "colorIdx": 0 },
+    { "id": "p2", "name": "Marcos",  "colorIdx": 4 }
+  ],
+  "blocks": [
+    {
+      "title": "Bloque 1 — Presentación",
+      "time": "00:00 – 02:00",
+      "lines": [
+        { "type": "note", "text": "🎬 Entrada en directo. Música de cabecera." },
+        { "participantId": "p1", "text": "Buenas tardes y bienvenidos a otro programa. Soy Lourdes García.", "type": "line" },
+        { "participantId": "p2", "text": "Y yo soy Marcos Ruiz. Hoy tenemos un programa cargado de novedades.", "type": "line" },
+        { "participantId": "p1", "text": "Así es. Comenzamos con las noticias de la semana.", "type": "line" },
+        { "type": "note", "text": "⬇ Ambos miran a cámara 2." }
+      ]
+    },
+    {
+      "title": "Bloque 2 — Reportaje",
+      "time": "02:00 – 08:00",
+      "lines": [
+        { "type": "note", "text": "📷 Corte a VTR. Duración: 3 minutos." },
+        { "participantId": "p2", "text": "Como acabáis de ver, la situación en el barrio ha cambiado mucho en los últimos meses.", "type": "line" },
+        { "participantId": "p1", "text": "Tenemos en el plató a la presidenta de la asociación de vecinos. Bienvenida.", "type": "line" },
+        { "type": "note", "text": "👋 Invitada entra por la derecha y toma asiento." },
+        { "participantId": "p2", "text": "Cuéntenos, ¿cómo ha vivido su comunidad estos cambios?", "type": "line" },
+        { "type": "note", "text": "⏸ Pausa para la respuesta. No leer." },
+        { "participantId": "p1", "text": "Muchas gracias por compartir su experiencia con nosotros.", "type": "line" }
+      ]
+    },
+    {
+      "title": "Bloque 3 — Cierre",
+      "time": "08:00 – 10:00",
+      "lines": [
+        { "type": "note", "text": "🎵 Música de cierre a volumen bajo." },
+        { "participantId": "p1", "text": "Y con esto llegamos al final de la edición de hoy. Ha sido un placer acompañaros.", "type": "line" },
+        { "participantId": "p2", "text": "Mañana estaremos aquí de nuevo con más noticias. ¡Hasta entonces!", "type": "line" },
+        { "participantId": "p1", "text": "¡Hasta mañana!", "type": "line" },
+        { "type": "note", "text": "🔴 Corte a publicidad. Cámara 3." }
+      ]
+    }
+  ]
+}
