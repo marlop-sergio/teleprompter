@@ -821,8 +821,8 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
          style="background:var(--bg);border-radius:8px;padding:12px;font-size:11px;
                 color:var(--text2);white-space:pre-wrap;max-height:240px;overflow-y:auto;
                 font-family:monospace;margin:0">Comprobando…</pre>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button id="restart-btn" class="btn btn-green btn-sm" style="display:none"
+    <div style="display:flex;gap:8px;justify-content:space-between;align-items:center">
+      <button id="restart-btn" class="btn btn-green btn-sm"
               onclick="doRestart()">⚡ Reiniciar servidor</button>
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('update-modal').style.display='none'">Cerrar</button>
     </div>
@@ -2222,14 +2222,12 @@ async function checkUpdate() {
   const outEl  = document.getElementById("update-output");
   const rstBtn = document.getElementById("restart-btn");
   outEl.textContent = "Ejecutando git pull…";
-  rstBtn.style.display = "none";
   modal.style.display = "flex";
   try {
     const r = await fetch("/api/update");
     const d = await r.json();
     outEl.textContent = d.output || "(sin salida)";
     if (d.upToDate) outEl.textContent += "\n\n✅ Ya tienes la última versión.";
-    if (d.needsRestart) rstBtn.style.display = "inline-flex";
   } catch(e) {
     outEl.textContent = "Error al conectar con el servidor.\n" + e.message;
   }
