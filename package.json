@@ -13,11 +13,24 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "build:win": "pkg server.js --compress GZip --targets node18-win-x64 --output dist/teleprompter-pro.exe",
     "postinstall": "node download-fonts.js"
+  },
+  "pkg": {
+    "assets": [
+      "public/**",
+      "node_modules/qrcode/lib/**"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ]
   },
   "dependencies": {
     "ws": "^8.17.0",
     "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
   },
   "packageManager": "pnpm@9.0.0"
 }

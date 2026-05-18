@@ -15,16 +15,20 @@ const QRCode = require("qrcode");
 // ── Constantes ────────────────────────────────────────────────────────────────
 const { version: VERSION } = require("./package.json");
 const PORT = 3000;
-const SCRIPTS_DIR = path.join(__dirname, "scripts");
+
+// En ejecutable pkg los ficheros mutables van junto al .exe, no en el snapshot
+const IS_PKG  = typeof process.pkg !== "undefined";
+const DATA_DIR = IS_PKG ? path.dirname(process.execPath) : __dirname;
+
+const SCRIPTS_DIR = path.join(DATA_DIR, "scripts");
 const SCRIPTS_DIR_NORMALIZED = SCRIPTS_DIR + path.sep;
 
 // ── TLS opcional ──────────────────────────────────────────────────────────────
-// Coloca cert.pem y key.pem en la raíz del proyecto para activar HTTPS.
-// Sin ellos el servidor arranca en HTTP (modo de desarrollo).
+// Coloca cert.pem y key.pem junto al ejecutable (o en la raíz en dev) para HTTPS.
 let TLS = null;
 try {
-  const cert = fs.readFileSync(path.join(__dirname, "cert.pem"));
-  const key  = fs.readFileSync(path.join(__dirname, "key.pem"));
+  const cert = fs.readFileSync(path.join(DATA_DIR, "cert.pem"));
+  const key  = fs.readFileSync(path.join(DATA_DIR, "key.pem"));
   TLS = { cert, key };
 } catch { /* sin certificado → HTTP */ }
 
@@ -61,7 +65,7 @@ const PASTEL_COLORS = [
 ];
 
 // ── Config persistente ────────────────────────────────────────────────────────
-const CONFIG_FILE  = path.join(__dirname, "config.json");
+const CONFIG_FILE  = path.join(DATA_DIR, "config.json");
 const DEFAULT_CONFIG = {
   speakerSize: 22, noteSize: 42, contentWidth: 80,
   hideCursor: false, showServerIP: false, stopAtBlockEnd: false,
@@ -547,18 +551,19 @@ function handleMessage(ws, msg) {
 
 function clamp(v, min, max) { return Math.min(Math.max(Number(v) || 0, min), max); }
 
-// ── Git pull silencioso al arrancar ───────────────────────────────────────────
-// Si hay cambios, el proceso se termina para que pm2 relance con el código nuevo
-try {
-  const pullOut = require("child_process")
-    .execSync("git pull origin main", { cwd: __dirname, timeout: 15000 })
-    .toString().trim();
-  console.log("✓ git pull:", pullOut);
-  if (pullOut && !/already up.to.date|ya está actualizado/i.test(pullOut)) {
-    console.log("🔄 Código actualizado — relanzando con nuevo código…");
-    process.exit(0); // pm2 relanza automáticamente con el código nuevo en disco
-  }
-} catch { console.log("⚠ git pull omitido (sin internet o sin cambios)"); }
+// ── Git pull silencioso al arrancar (solo modo desarrollo / pm2) ──────────────
+if (!IS_PKG) {
+  try {
+    const pullOut = require("child_process")
+      .execSync("git pull origin main", { cwd: __dirname, timeout: 15000 })
+      .toString().trim();
+    console.log("✓ git pull:", pullOut);
+    if (pullOut && !/already up.to.date|ya está actualizado/i.test(pullOut)) {
+      console.log("🔄 Código actualizado — relanzando con nuevo código…");
+      process.exit(0);
+    }
+  } catch { console.log("⚠ git pull omitido (sin internet o sin cambios)"); }
+}
 
 // ── Arranque ──────────────────────────────────────────────────────────────────
 server.listen(PORT, "0.0.0.0", () => {
@@ -585,4 +590,7 @@ server.listen(PORT, "0.0.0.0", () => {
     });
   }
   console.log("\n   Ctrl+C para detener\n");
+  if (IS_PKG) {
+    setTimeout(() => exec(`cmd /c start http://localhost:${PORT}`), 800);
+  }
 });

@@ -10,3 +10,4 @@ security_review_*.md
 .DS_Store
 Thumbs.db
 .vscode/
+dist/
