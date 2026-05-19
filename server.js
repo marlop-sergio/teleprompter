@@ -387,10 +387,11 @@ function handleMessage(ws, msg) {
       break;
 
     case "save_script": {
-      // Preservar fotos del estado del servidor antes de guardar a disco
+      // El estudio ya envía las fotos en el script. El servidor solo sobreescribe
+      // si tiene una versión más reciente (puesta desde mando remoto).
       (msg.script.participants || []).forEach(p => {
         if (state.participantPhotos[p.id]) p.photo = state.participantPhotos[p.id];
-        else delete p.photo;
+        // Si no hay foto en estado del servidor, se respeta la que viene del estudio
       });
       const id = saveScript(msg.script);
       broadcastAll({ type: "scripts_list", scripts: listScripts() });

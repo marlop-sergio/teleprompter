@@ -402,10 +402,15 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 /* ── Emoji picker ── */
 #emoji-picker{
   position:fixed;z-index:502;background:var(--s2);border:1px solid var(--border2);
-  border-radius:12px;padding:10px;display:none;flex-wrap:wrap;gap:4px;width:252px;
+  border-radius:12px;padding:8px;display:none;flex-wrap:wrap;gap:2px;width:284px;
+  max-height:300px;overflow-y:auto;
   box-shadow:0 8px 32px rgba(0,0,0,.5);
 }
 #emoji-picker.open{display:flex}
+.ep-cat{
+  flex-basis:100%;font-size:9px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);padding:5px 2px 2px;
+}
 .emoji-btn{
   width:32px;height:32px;display:flex;align-items:center;justify-content:center;
   border-radius:6px;cursor:pointer;font-size:18px;transition:background .1s;
@@ -1376,7 +1381,7 @@ function renderLineHTML(line, bi, li) {
       <textarea class="line-textarea"
                 onchange="onLineText(${bi},${li},this.value)"
                 oninput="autoResize(this)">${esc(line.text||"")}</textarea>
-      ${isNote?`<button class="line-emoji" onclick="openEmojiPicker(this.closest('.line-editor').querySelector('.line-textarea'),event)" title="Insertar emoji">😊</button>`:""}
+      <button class="line-emoji" onclick="openEmojiPicker(this.closest('.line-editor').querySelector('.line-textarea'),event)" title="Insertar emoji">😊</button>
       <button class="line-jump" onclick="jumpToLine(${bi},${li})" title="Saltar a esta línea en el teleprónter">⤵</button>
       <button class="line-del" onclick="removeLine(${bi},${li})" title="Eliminar línea">×</button>
     </div>`;
@@ -1405,22 +1410,54 @@ function undo() {
   toast("Deshecho ↩");
 }
 
+function insertLineAfter(bi, li) {
+  const p = script.participants?.[activeSpeakerIdx];
+  snapshot();
+  script.blocks[bi].lines.splice(li + 1, 0, {
+    participantId: p?.id || script.participants?.[0]?.id || "p0",
+    text: "", type: "line",
+  });
+  renderBlocks();
+  markDirty();
+  setTimeout(() => {
+    const tas = document.querySelectorAll(`#block-lines-${bi} .line-textarea`);
+    if (tas[li + 1]) tas[li + 1].focus();
+  }, 50);
+}
+
 document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
     const tag = document.activeElement?.tagName;
-    if (tag === "TEXTAREA" || tag === "INPUT") return; // dejar que el browser maneje el undo en campos de texto
+    if (tag === "TEXTAREA" || tag === "INPUT") return;
     e.preventDefault();
     undo();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    const lineEl  = e.target.closest?.(".line-editor");
+    const blockEl = e.target.closest?.(".block-editor");
+    if (lineEl && blockEl && script) {
+      e.preventDefault();
+      insertLineAfter(parseInt(blockEl.dataset.block), parseInt(lineEl.dataset.line));
+    }
   }
 });
 
 // Block ops
 function addBlock() {
   if (!script) { toast("Crea o carga un guion primero"); return; }
-  script.blocks.push({ title:`Bloque ${script.blocks.length+1}`, time:"", lines:[] });
+  const p = script.participants?.[activeSpeakerIdx];
+  const bi = script.blocks.length;
+  script.blocks.push({
+    title: `Bloque ${bi + 1}`, time: "",
+    lines: [{ participantId: p?.id || script.participants?.[0]?.id || "p0", text: "", type: "line" }],
+  });
   renderBlocks();
   renderBlockNav();
   markDirty();
+  setTimeout(() => {
+    const ta = document.querySelector(`#block-lines-${bi} .line-textarea`);
+    if (ta) ta.focus();
+  }, 50);
 }
 
 function removeBlock(bi) {
@@ -1652,26 +1689,35 @@ function onDropZoneDrop(e) {
 }
 
 // ── Emoji picker ─────────────────────────────────────────────────────────────
-const EMOJIS = [
-  "⬆","⬇","➡","⬅","↩","↪","↑","↓","→","←",
-  "🎙️","📷","🎬","📢","🎵","🎶","🔔",
-  "👏","👍","🤝","✋","🙏","👋",
-  "⚠️","✅","❌","⏸","▶","⏭","⏮","🔴","🟡","🟢",
-  "★","•","·","—","…","«","»",
+const EMOJI_GROUPS = [
+  { cat:"Reproducción", e:["▶","⏸","⏹","⏺","⏭","⏮","⏩","⏪","🔄","🔁"] },
+  { cat:"Estado",       e:["✅","❌","⚠️","💡","🔴","🟡","🟢","🔵","⭕","❗","❓","🚫","🔕"] },
+  { cat:"Dirección",    e:["⬆","⬇","➡","⬅","↑","↓","→","←","↩","↪","↗","↘","↙","↖","↕","↔"] },
+  { cat:"Gestos",       e:["👋","✋","👍","👎","👏","🙌","🤝","🙏","✌️","🤞","🫶","☝️","👆","👇","👉","👈"] },
+  { cat:"Comunicación", e:["🎤","🎧","🎙️","📢","📣","🗣️","💬","📞","📺","📡","📻","📷","🎬","🎭"] },
+  { cat:"Tiempo",       e:["⏰","⌛","⏳","⏱️","🕐","🕑","🕒","🕓","🕔","🕕","🕗","🕙","🕛"] },
+  { cat:"Caras",        e:["😊","😀","😄","😎","🙂","😐","😮","🤔","🤨","😏","😌","🥳","😬","🤫","😴"] },
+  { cat:"Símbolos",     e:["⭐","🌟","★","☆","●","■","□","♦","✦","✓","©","®","™"] },
+  { cat:"Tipografía",   e:["•","·","—","…","«","»","§","‼","〰","_"] },
 ];
 
 function openEmojiPicker(textarea, e) {
   e.stopPropagation();
   emojiTarget = textarea;
   const picker = document.getElementById("emoji-picker");
-  picker.innerHTML = EMOJIS.map(em =>
-    `<span class="emoji-btn" onclick="insertEmoji('${em}')">${em}</span>`
-  ).join("");
+  let html = "";
+  EMOJI_GROUPS.forEach(g => {
+    html += `<div class="ep-cat">${g.cat}</div>`;
+    html += g.e.map(em =>
+      `<span class="emoji-btn" data-em="${encodeURIComponent(em)}" onclick="insertEmoji(decodeURIComponent(this.dataset.em))">${em}</span>`
+    ).join("");
+  });
+  picker.innerHTML = html;
   picker.classList.add("open");
   const rect = e.target.getBoundingClientRect();
   const spaceBelow = window.innerHeight - rect.bottom;
-  picker.style.top  = (spaceBelow < 180 ? rect.top - 180 : rect.bottom + 4) + "px";
-  picker.style.left = Math.min(rect.left, window.innerWidth - 260) + "px";
+  picker.style.top  = (spaceBelow < 310 ? rect.top - 310 : rect.bottom + 4) + "px";
+  picker.style.left = Math.min(rect.left, window.innerWidth - 292) + "px";
 }
 
 function insertEmoji(emoji) {
@@ -1886,7 +1932,12 @@ function onImportFile(input) {
 
 function saveScript() {
   if (!script) { toast("Nada que guardar"); return; }
-  send({ type:"save_script", script });
+  // Incluir fotos en el script antes de enviar al servidor
+  const toSend = JSON.parse(JSON.stringify(script));
+  (toSend.participants || []).forEach(p => {
+    if (participantPhotos[p.id]) p.photo = participantPhotos[p.id];
+  });
+  send({ type:"save_script", script: toSend });
 }
 
 function publishScript() {
