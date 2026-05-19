@@ -3,6 +3,7 @@
   "version": "2.10.0",
   "description": "Sistema profesional de teleprónter con reconocimiento de voz, control remoto y gestión de guiones multiparticipante.",
   "main": "server.js",
+  "bin": "server.js",
   "license": "AGPL-3.0-or-later",
   "author": "Sergio Marlop",
   "homepage": "https://github.com/marlop-sergio/teleprompter",
@@ -13,13 +14,12 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "build:win": "pkg server.js --compress GZip --targets node18-win-x64 --output dist/teleprompter-pro.exe",
+    "build:win": "pkg . --compress GZip --output dist/teleprompter-pro.exe",
     "postinstall": "node download-fonts.js"
   },
   "pkg": {
     "assets": [
-      "public/**",
-      "node_modules/qrcode/lib/**"
+      "public/**/*"
     ],
     "targets": [
       "node18-win-x64"
