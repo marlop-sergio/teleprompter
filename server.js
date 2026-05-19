@@ -191,6 +191,7 @@ async function buildNetworkInfo() {
     version: VERSION, allIps: all, preferredIp: preferred, hostname: LOCAL_HOST,
     qrCodes: allQrSets[0]?.qrCodes,   // retrocompatibilidad
     allQrSets,
+    isPkg: IS_PKG,
   };
 }
 
@@ -217,6 +218,13 @@ const requestHandler = (req, res) => {
 
   // ── Update via git pull ──────────────────────────────────────────────────
   if (urlPath === "/api/update") {
+    if (IS_PKG) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({
+        output: `Teleprónter PRO v${VERSION} (ejecutable)\n\nPara actualizar, descarga la nueva versión desde:\nhttps://github.com/marlop-sergio/teleprompter/releases`,
+        upToDate: true, needsRestart: false,
+      }));
+    }
     exec("git pull origin main", { cwd: __dirname }, (err, stdout, stderr) => {
       const out = (stdout + stderr).trim();
       const upToDate = /already up.to.date|ya está actualizado/i.test(out);

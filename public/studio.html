@@ -866,6 +866,10 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
   fetch("/api/network").then(r=>r.json()).then(d=>{
     const el=document.getElementById("powered-by");
     if(el&&d.version) el.textContent=`Powered by meettheexpert.tech · v${d.version}`;
+    if(d.isPkg){
+      const btn=document.getElementById("update-btn");
+      if(btn) btn.style.display="none";
+    }
   }).catch(()=>{});
 </script>
 
