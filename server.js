@@ -14,7 +14,11 @@ const QRCode = require("qrcode");
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const { version: VERSION } = require("./package.json");
-const PORT = 3000;
+
+// Puerto: --port XXXX > variable de entorno PORT > 3000 por defecto
+const _portArg = process.argv.indexOf("--port");
+const PORT = _portArg !== -1 ? parseInt(process.argv[_portArg + 1], 10) || 3000
+           : parseInt(process.env.PORT, 10) || 3000;
 
 // En ejecutable pkg los ficheros mutables van junto al .exe, no en el snapshot
 const IS_PKG  = typeof process.pkg !== "undefined";
@@ -566,6 +570,22 @@ if (!IS_PKG) {
 }
 
 // ── Arranque ──────────────────────────────────────────────────────────────────
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`\n❌  El puerto ${PORT} ya está en uso.\n   Cierra cualquier otra instancia de Teleprónter PRO y vuelve a intentarlo.\n`);
+    if (IS_PKG) {
+      // En exe: mantener la ventana abierta para que el usuario pueda leer el error
+      console.log("   Pulsa Intro para salir…");
+      process.stdin.resume();
+      process.stdin.once("data", () => process.exit(1));
+    } else {
+      process.exit(1);
+    }
+  } else {
+    throw err;
+  }
+});
+
 server.listen(PORT, "0.0.0.0", () => {
   const ips = [];
   for (const iface of Object.values(os.networkInterfaces())) {
