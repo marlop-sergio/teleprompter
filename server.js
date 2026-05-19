@@ -119,6 +119,41 @@ const state = {
 // ── Utilidades de scripts ─────────────────────────────────────────────────────
 if (!fs.existsSync(SCRIPTS_DIR)) fs.mkdirSync(SCRIPTS_DIR, { recursive: true });
 
+// Crear guión de ejemplo la primera vez (cuando no hay scripts guardados)
+(function createDemoIfEmpty() {
+  if (fs.readdirSync(SCRIPTS_DIR).filter(f => f.endsWith(".json")).length > 0) return;
+  const demo = {
+    title: "Guión de ejemplo",
+    participants: [
+      { id:"p0", name:"Presentador", colorIdx:0 },
+      { id:"p1", name:"Invitado",    colorIdx:4 },
+    ],
+    blocks: [
+      { title:"Presentación", time:"00:30", lines:[
+        { participantId:"p0", text:"Bienvenidos al programa. Hoy contamos con un invitado muy especial.", type:"line" },
+        { text:"(Pausa — mirar a cámara)", type:"note" },
+        { participantId:"p0", text:"Muchas gracias por acompañarnos.", type:"line" },
+      ]},
+      { title:"Entrevista", time:"05:00", lines:[
+        { participantId:"p0", text:"¿Cómo estás hoy?", type:"line" },
+        { participantId:"p1", text:"Muy bien, gracias por la invitación.", type:"line" },
+        { participantId:"p0", text:"Cuéntanos sobre tu proyecto.", type:"line" },
+        { participantId:"p1", text:"Con mucho gusto, ha sido un trabajo apasionante.", type:"line" },
+      ]},
+      { title:"Cierre", time:"00:30", lines:[
+        { participantId:"p0", text:"Muchas gracias por estar con nosotros.", type:"line" },
+        { participantId:"p1", text:"Ha sido un placer. ¡Hasta pronto!", type:"line" },
+        { text:"(Música de cierre)", type:"note" },
+      ]},
+    ],
+  };
+  const id = saveScript(demo);
+  state.script = demo;
+  state.activeScriptId = id;
+  persistConfig({ ...loadSavedConfig(), lastScriptId: id });
+  console.log("✓ Guión de ejemplo creado");
+})();
+
 function listScripts() {
   return fs.readdirSync(SCRIPTS_DIR)
     .filter(f => f.endsWith(".json"))

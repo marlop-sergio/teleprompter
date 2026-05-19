@@ -522,12 +522,12 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 
     <div id="scripts-list"></div>
 
-    <div class="panel-head" style="margin-top:auto;border-top:1px solid var(--border)">
+    <div id="participants-head" class="panel-head" style="margin-top:auto;border-top:1px solid var(--border);display:none">
       Participantes
       <button class="btn btn-ghost btn-sm" onclick="addParticipant()">+ Añadir</button>
     </div>
 
-    <div id="participants-list"></div>
+    <div id="participants-list" style="display:none"></div>
 
   </div>
 
@@ -1280,6 +1280,10 @@ document.addEventListener("click", e => {
 // EDITOR
 // ══════════════════════════════════════════════════════
 function renderEditor() {
+  const show = !!script;
+  const d = show ? "" : "none";
+  document.getElementById("participants-head").style.display = d;
+  document.getElementById("participants-list").style.display = d;
   renderParticipants();
   renderSpeakerPills();
   renderBlocks();
