@@ -402,15 +402,20 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 /* ── Emoji picker ── */
 #emoji-picker{
   position:fixed;z-index:502;background:var(--s2);border:1px solid var(--border2);
-  border-radius:12px;padding:8px;display:none;flex-wrap:wrap;gap:2px;width:284px;
-  max-height:300px;overflow-y:auto;
+  border-radius:12px;padding:8px;display:none;flex-direction:column;gap:5px;width:288px;
   box-shadow:0 8px 32px rgba(0,0,0,.5);
 }
 #emoji-picker.open{display:flex}
-.ep-cat{
-  flex-basis:100%;font-size:9px;font-weight:700;letter-spacing:.1em;
-  text-transform:uppercase;color:var(--muted);padding:5px 2px 2px;
+#ep-tabs{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
+#ep-tabs::-webkit-scrollbar{display:none}
+.ep-tab{
+  padding:3px 9px;border-radius:6px;font-size:10px;font-weight:600;letter-spacing:.03em;
+  cursor:pointer;border:none;background:transparent;color:var(--muted);
+  white-space:nowrap;font-family:'Figtree',system-ui,sans-serif;transition:all .12s;
 }
+.ep-tab:hover{color:var(--text)}
+.ep-tab.active{background:var(--s3);color:var(--text)}
+#ep-grid{display:flex;flex-wrap:wrap;gap:2px;max-height:190px;overflow-y:auto}
 .emoji-btn{
   width:32px;height:32px;display:flex;align-items:center;justify-content:center;
   border-radius:6px;cursor:pointer;font-size:18px;transition:background .1s;
@@ -1411,6 +1416,9 @@ function undo() {
 }
 
 function insertLineAfter(bi, li) {
+  // Volcar el texto actual del textarea antes de re-renderizar (onchange no ha disparado aún)
+  const curTa = document.querySelector(`#block-lines-${bi} [data-line="${li}"] .line-textarea`);
+  if (curTa && script.blocks[bi]?.lines[li] != null) script.blocks[bi].lines[li].text = curTa.value;
   const p = script.participants?.[activeSpeakerIdx];
   snapshot();
   script.blocks[bi].lines.splice(li + 1, 0, {
@@ -1690,34 +1698,82 @@ function onDropZoneDrop(e) {
 
 // ── Emoji picker ─────────────────────────────────────────────────────────────
 const EMOJI_GROUPS = [
-  { cat:"Reproducción", e:["▶","⏸","⏹","⏺","⏭","⏮","⏩","⏪","🔄","🔁"] },
-  { cat:"Estado",       e:["✅","❌","⚠️","💡","🔴","🟡","🟢","🔵","⭕","❗","❓","🚫","🔕"] },
-  { cat:"Dirección",    e:["⬆","⬇","➡","⬅","↑","↓","→","←","↩","↪","↗","↘","↙","↖","↕","↔"] },
-  { cat:"Gestos",       e:["👋","✋","👍","👎","👏","🙌","🤝","🙏","✌️","🤞","🫶","☝️","👆","👇","👉","👈"] },
-  { cat:"Comunicación", e:["🎤","🎧","🎙️","📢","📣","🗣️","💬","📞","📺","📡","📻","📷","🎬","🎭"] },
-  { cat:"Tiempo",       e:["⏰","⌛","⏳","⏱️","🕐","🕑","🕒","🕓","🕔","🕕","🕗","🕙","🕛"] },
-  { cat:"Caras",        e:["😊","😀","😄","😎","🙂","😐","😮","🤔","🤨","😏","😌","🥳","😬","🤫","😴"] },
-  { cat:"Símbolos",     e:["⭐","🌟","★","☆","●","■","□","♦","✦","✓","©","®","™"] },
-  { cat:"Tipografía",   e:["•","·","—","…","«","»","§","‼","〰","_"] },
+  { cat:"▶ Play",    kw:"play pausa stop grabar repetir reproducir inicio fin vuelta",
+    e:["▶","⏸","⏹","⏺","⏭","⏮","⏩","⏪","🔄","🔁"] },
+  { cat:"✅ Estado", kw:"ok check error warning bien mal alerta info prohibido silencio mute",
+    e:["✅","❌","⚠️","💡","🔴","🟡","🟢","🔵","⭕","❗","❓","🚫","🔕"] },
+  { cat:"⬆ Flechas",kw:"flecha arriba abajo izquierda derecha dirección volver retroceder",
+    e:["⬆","⬇","➡","⬅","↑","↓","→","←","↩","↪","↗","↘","↙","↖","↕","↔"] },
+  { cat:"👋 Gestos", kw:"mano aplaudir gracias bravo gesto hola adios pulgar saludo ok",
+    e:["👋","✋","👍","👎","👏","🙌","🤝","🙏","✌️","🤞","🫶","☝️","👆","👇","👉","👈"] },
+  { cat:"🎤 Estudio",kw:"micro camara foto tv radio hablar comunicar locutor grabacion estudio directo",
+    e:["🎤","🎧","🎙️","📢","📣","🗣️","💬","📞","📺","📡","📻","📷","🎬","🎭"] },
+  { cat:"⏰ Tiempo", kw:"reloj hora tiempo esperar cronometro temporizador urgente rapido",
+    e:["⏰","⌛","⏳","⏱️","🕐","🕑","🕒","🕓","🕔","🕕","🕗","🕙","🕛"] },
+  { cat:"😊 Caras",  kw:"cara emoji sonrisa feliz triste gesto expresion humor mood",
+    e:["😊","😀","😄","😎","🙂","😐","😮","🤔","🤨","😏","😌","🥳","😬","🤫","😴"] },
+  { cat:"★ Símbolos",kw:"estrella simbolo marca circulo cuadrado copyright favorito especial",
+    e:["⭐","🌟","★","☆","●","■","□","♦","✦","✓","©","®","™"] },
+  { cat:"• Texto",   kw:"punto raya guion puntos tipografia separador barra lista",
+    e:["•","·","—","…","«","»","§","‼","〰","_"] },
 ];
 
 function openEmojiPicker(textarea, e) {
   e.stopPropagation();
   emojiTarget = textarea;
   const picker = document.getElementById("emoji-picker");
-  let html = "";
-  EMOJI_GROUPS.forEach(g => {
-    html += `<div class="ep-cat">${g.cat}</div>`;
-    html += g.e.map(em =>
-      `<span class="emoji-btn" data-em="${encodeURIComponent(em)}" onclick="insertEmoji(decodeURIComponent(this.dataset.em))">${em}</span>`
+  let activeTab = "all";
+
+  picker.innerHTML = `
+    <input id="ep-search" type="text" placeholder="🔍 Buscar…" autocomplete="off"
+      style="padding:4px 8px;border-radius:6px;border:1px solid var(--border2);
+             background:var(--s3);color:var(--text);font-size:12px;outline:none;
+             font-family:'Figtree',system-ui,sans-serif;flex-shrink:0">
+    <div id="ep-tabs"></div>
+    <div id="ep-grid"></div>`;
+
+  const search = picker.querySelector("#ep-search");
+  const tabs   = picker.querySelector("#ep-tabs");
+  const grid   = picker.querySelector("#ep-grid");
+
+  function renderTabs() {
+    const defs = [{ id:"all", label:"Todos" }, ...EMOJI_GROUPS.map(g => ({ id:g.cat, label:g.cat }))];
+    tabs.innerHTML = defs.map(t =>
+      `<button class="ep-tab${t.id===activeTab?" active":""}" data-tab="${t.id}">${t.label}</button>`
     ).join("");
+  }
+  function renderGrid(q) {
+    const ql = q.trim().toLowerCase();
+    let emojis;
+    if (ql) {
+      emojis = EMOJI_GROUPS
+        .filter(g => g.cat.toLowerCase().includes(ql) || g.kw.toLowerCase().includes(ql))
+        .flatMap(g => g.e);
+      if (!emojis.length) emojis = EMOJI_GROUPS.flatMap(g => g.e);
+    } else if (activeTab === "all") {
+      emojis = EMOJI_GROUPS.flatMap(g => g.e);
+    } else {
+      emojis = EMOJI_GROUPS.find(g => g.cat === activeTab)?.e || [];
+    }
+    grid.innerHTML = emojis.map(em =>
+      `<span class="emoji-btn" data-em="${encodeURIComponent(em)}"
+             onclick="insertEmoji(decodeURIComponent(this.dataset.em))">${em}</span>`
+    ).join("") || `<span style="color:var(--muted);font-size:11px;padding:8px">Sin resultados</span>`;
+  }
+
+  renderTabs(); renderGrid("");
+  tabs.addEventListener("click", ev => {
+    const btn = ev.target.closest(".ep-tab"); if (!btn) return;
+    activeTab = btn.dataset.tab; search.value = ""; renderTabs(); renderGrid("");
   });
-  picker.innerHTML = html;
+  search.addEventListener("input", () => renderGrid(search.value));
+  search.addEventListener("click", ev => ev.stopPropagation());
+
   picker.classList.add("open");
-  const rect = e.target.getBoundingClientRect();
-  const spaceBelow = window.innerHeight - rect.bottom;
-  picker.style.top  = (spaceBelow < 310 ? rect.top - 310 : rect.bottom + 4) + "px";
-  picker.style.left = Math.min(rect.left, window.innerWidth - 292) + "px";
+  const rect = e.target.getBoundingClientRect(), ph = 320;
+  picker.style.top  = (window.innerHeight - rect.bottom < ph + 8 ? rect.top - ph - 4 : rect.bottom + 4) + "px";
+  picker.style.left = Math.min(rect.left, window.innerWidth - 296) + "px";
+  setTimeout(() => search.focus(), 50);
 }
 
 function insertEmoji(emoji) {

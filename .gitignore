@@ -11,3 +11,4 @@ security_review_*.md
 Thumbs.db
 .vscode/
 dist/
+build-win-output/

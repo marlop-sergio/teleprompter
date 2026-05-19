@@ -14,7 +14,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "build:win": "pkg . --compress GZip --output dist/teleprompter-pro.exe",
+    "build:win": "node build-win.js",
     "postinstall": "node download-fonts.js"
   },
   "pkg": {
@@ -30,7 +30,10 @@
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
-    "pkg": "^5.8.1"
+    "pkg":    "^5.8.1",
+    "pngjs":  "^7.0.0",
+    "to-ico": "^1.1.5",
+    "rcedit": "^3.0.1"
   },
   "packageManager": "pnpm@9.0.0"
 }
