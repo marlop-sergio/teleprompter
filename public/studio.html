@@ -411,15 +411,14 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
   box-shadow:0 8px 32px rgba(0,0,0,.5);
 }
 #emoji-picker.open{display:flex}
-#ep-tabs{display:flex;gap:2px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
-#ep-tabs::-webkit-scrollbar{display:none}
+#ep-tabs{display:flex;flex-wrap:wrap;gap:2px;flex-shrink:0}
 .ep-tab{
-  padding:3px 9px;border-radius:6px;font-size:10px;font-weight:600;letter-spacing:.03em;
-  cursor:pointer;border:none;background:transparent;color:var(--muted);
-  white-space:nowrap;font-family:'Figtree',system-ui,sans-serif;transition:all .12s;
+  width:28px;height:28px;padding:0;border-radius:6px;font-size:16px;
+  cursor:pointer;border:none;background:transparent;color:inherit;
+  display:flex;align-items:center;justify-content:center;transition:background .1s;
 }
-.ep-tab:hover{color:var(--text)}
-.ep-tab.active{background:var(--s3);color:var(--text)}
+.ep-tab:hover{background:var(--s3)}
+.ep-tab.active{background:var(--s3);outline:1px solid var(--border2)}
 #ep-grid{display:flex;flex-wrap:wrap;gap:2px;max-height:190px;overflow-y:auto}
 .emoji-btn{
   width:32px;height:32px;display:flex;align-items:center;justify-content:center;
@@ -491,11 +490,11 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
     <button class="btn btn-ghost btn-sm" onclick="checkUpdate()" id="update-btn"
             title="Buscar actualizaciones">🔄</button>
     <button class="btn btn-ghost btn-sm"
-            onclick="window.open('/teleprompter.html','_blank')"
+            onclick="openNetUrl('/teleprompter.html')"
             oncontextmenu="showQRModal('teleprompter',event)"
             title="Abrir teleprónter (clic dcho: QR)">📺 Ver</button>
     <button class="btn btn-ghost btn-sm"
-            onclick="window.open('/remote.html','_blank')"
+            onclick="openNetUrl('/remote.html')"
             oncontextmenu="showQRModal('remote',event)"
             title="Abrir mando (clic dcho: QR)">📱 Mando</button>
   </div>
@@ -1732,24 +1731,34 @@ function onDropZoneDrop(e) {
 
 // ── Emoji picker ─────────────────────────────────────────────────────────────
 const EMOJI_GROUPS = [
-  { cat:"▶ Play",    kw:"play pausa stop grabar repetir reproducir inicio fin vuelta",
-    e:["▶","⏸","⏹","⏺","⏭","⏮","⏩","⏪","🔄","🔁"] },
-  { cat:"✅ Estado", kw:"ok check error warning bien mal alerta info prohibido silencio mute",
-    e:["✅","❌","⚠️","💡","🔴","🟡","🟢","🔵","⭕","❗","❓","🚫","🔕"] },
-  { cat:"⬆ Flechas",kw:"flecha arriba abajo izquierda derecha dirección volver retroceder",
-    e:["⬆","⬇","➡","⬅","↑","↓","→","←","↩","↪","↗","↘","↙","↖","↕","↔"] },
-  { cat:"👋 Gestos", kw:"mano aplaudir gracias bravo gesto hola adios pulgar saludo ok",
-    e:["👋","✋","👍","👎","👏","🙌","🤝","🙏","✌️","🤞","🫶","☝️","👆","👇","👉","👈"] },
-  { cat:"🎤 Estudio",kw:"micro camara foto tv radio hablar comunicar locutor grabacion estudio directo",
-    e:["🎤","🎧","🎙️","📢","📣","🗣️","💬","📞","📺","📡","📻","📷","🎬","🎭"] },
-  { cat:"⏰ Tiempo", kw:"reloj hora tiempo esperar cronometro temporizador urgente rapido",
-    e:["⏰","⌛","⏳","⏱️","🕐","🕑","🕒","🕓","🕔","🕕","🕗","🕙","🕛"] },
-  { cat:"😊 Caras",  kw:"cara emoji sonrisa feliz triste gesto expresion humor mood",
-    e:["😊","😀","😄","😎","🙂","😐","😮","🤔","🤨","😏","😌","🥳","😬","🤫","😴"] },
-  { cat:"★ Símbolos",kw:"estrella simbolo marca circulo cuadrado copyright favorito especial",
-    e:["⭐","🌟","★","☆","●","■","□","♦","✦","✓","©","®","™"] },
-  { cat:"• Texto",   kw:"punto raya guion puntos tipografia separador barra lista",
-    e:["•","·","—","…","«","»","§","‼","〰","_"] },
+  { cat:"▶ Play",      kw:"play pausa stop grabar repetir reproducir inicio fin vuelta",
+    e:["▶","⏸","⏹","⏺","⏭","⏮","⏩","⏪","🔄","🔁","🔀","⏏️"] },
+  { cat:"✅ Estado",   kw:"ok check error warning bien mal alerta info prohibido silencio mute",
+    e:["✅","❌","⚠️","💡","🔴","🟡","🟢","🔵","🟠","🟣","⭕","❗","❓","‼️","🚫","🔕","📵","⛔","🆗","🆕","🆙","🆒","🆓"] },
+  { cat:"⬆ Flechas",  kw:"flecha arriba abajo izquierda derecha dirección volver retroceder",
+    e:["⬆","⬇","➡","⬅","↑","↓","→","←","↩","↪","↗","↘","↙","↖","↕","↔","🔃","🔼","🔽","⏫","⏬","⏩","⏪"] },
+  { cat:"👋 Gestos",  kw:"mano aplaudir gracias bravo gesto hola adios pulgar saludo ok",
+    e:["👋","✋","🤚","🖐","👌","🤌","🤏","✌️","🤞","🤟","🤘","🤙","🖖","👍","👎","✊","👊","🤛","🤜","👏","🙌","🤝","🙏","🫶","☝️","👆","👇","👉","👈","🖕"] },
+  { cat:"🎤 Estudio", kw:"micro camara foto tv radio hablar comunicar locutor grabacion estudio directo",
+    e:["🎤","🎧","🎙️","📢","📣","🗣️","💬","💭","🗨️","📞","☎️","📟","📠","📺","📡","📻","📷","📸","🎥","🎬","🎭","🎞️","📽️","🎦","📝","📋","📌","📍"] },
+  { cat:"⏰ Tiempo",  kw:"reloj hora tiempo esperar cronometro temporizador urgente rapido",
+    e:["⏰","⌛","⏳","⏱️","🕐","🕑","🕒","🕓","🕔","🕕","🕖","🕗","🕘","🕙","🕚","🕛","🕧","📅","📆","🗓️"] },
+  { cat:"😊 Caras",   kw:"cara emoji sonrisa feliz triste gesto expresion humor mood llorar reir susto",
+    e:["😊","😀","😁","😂","🤣","😄","😅","😆","😎","🙂","😐","😑","😶","😮","😯","😲","🤔","🤨","🧐","😏","😌","🥳","😬","🤫","😴","🥱","🤗","😇","🥰","😍","😘","😛","😜","😝","🤑","😤","😠","😡","🤬","😭","😢","😥","😓","🫠","😱","😨","😰","🤯","🤮","🤧","🥴","😵","😷","🤒","🤕"] },
+  { cat:"🚗 Vehículos", kw:"coche avion barco tren moto bicicleta transporte vehiculo vuelo viaje",
+    e:["🚗","🚕","🚙","🚌","🚎","🏎️","🚓","🚑","🚒","🚐","🛻","🚚","🚛","🚜","🚲","🛵","🏍️","🛺","✈️","🛫","🛬","🛩️","🚀","🛸","🚁","🛷","🚂","🚃","🚄","🚅","🚆","🚇","🚈","🚉","🚊","🚋","🚞","🚝","🚟","🚠","🚡","🛳️","⛴️","🚢","⛵","🚤","🛥️","🛶","🚦","🚥","⛽","⚓"] },
+  { cat:"🌳 Naturaleza", kw:"arbol flor sol luna tierra agua fuego viento planta animal naturaleza campo cielo",
+    e:["🌳","🌲","🌴","🌵","🌾","🌿","🍀","🍁","🍂","🍃","🌸","🌺","🌻","🌹","🌷","🌼","🌱","🐾","🦁","🐯","🐻","🦊","🐺","🦝","🐗","🦌","🐴","🦄","🐄","🐷","🐑","🐐","🦙","🐘","🦏","🦛","🐬","🦈","🐳","🦋","🐝","🐞","🦜","🦅","🦆","🐓","🦃","🐢","🦎","🌍","🌎","🌏","🌕","🌙","⭐","☀️","🌤️","⛅","🌧️","⛈️","🌊","🔥","💧","🌈","❄️","⛄","🌬️","🌪️","🌫️"] },
+  { cat:"🍕 Comida",   kw:"comida bebida pizza hamburguesa fruta verdura cafe agua copa celebracion cocina",
+    e:["🍕","🍔","🌮","🌯","🥗","🍝","🍜","🍱","🍣","🍤","🍗","🥩","🍞","🧀","🥚","🍳","🥞","🍟","🌭","🥪","🍲","🍛","🍚","🎂","🍰","🧁","🍩","🍪","🍫","🍬","🍭","🍇","🍉","🍊","🍋","🍌","🍍","🍎","🍏","🍐","🍑","🍒","🍓","🫐","🥝","🍅","🥑","☕","🍵","🧃","🥤","🧋","🍺","🍻","🥂","🍷","🥃","🍸","🍹","🍾"] },
+  { cat:"⚽ Deporte",  kw:"deporte futbol baloncesto tenis golf trofeo medalla victoria juego pelota actividad",
+    e:["⚽","🏀","🏈","⚾","🥎","🎾","🏐","🏉","🥏","🎱","🏓","🏸","🥊","🥋","🏆","🥇","🥈","🥉","🏅","🎖️","⛳","🎣","🤿","🎽","🛹","🛷","⛸️","🎿","⛷️","🏂","🏋️","🤼","🤸","🤺","🤾","⛹️","🧘","🏊","🚣","🧗","🚵","🏇","🎯","🎳","🎰","🎲","♟️","🎮","🕹️"] },
+  { cat:"🎉 Eventos",  kw:"fiesta celebracion cumpleanos regalo globo fuegos aplausos evento especial",
+    e:["🎉","🎊","🎈","🎁","🎀","🎗️","🎟️","🎫","🏮","🪩","🎆","🎇","✨","🌟","💫","🔔","🔕","📯","🎺","🎸","🎻","🥁","🪘","🎷","🪗","🎹","🎼","🎵","🎶","🎤","🎧","🎭","🎨","🖌️","🖍️","✏️","📚","📖","🔍","🔎"] },
+  { cat:"★ Símbolos",  kw:"estrella simbolo marca circulo cuadrado copyright favorito especial numero",
+    e:["⭐","🌟","★","☆","●","■","□","◆","♦","✦","✓","✗","©","®","™","♾️","∞","#️⃣","*️⃣","0️⃣","1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟","💯","🔢","🔣","🔤","🔡","🔠"] },
+  { cat:"• Texto",     kw:"punto raya guion puntos tipografia separador barra lista parentesis",
+    e:["•","·","—","–","…","«","»","‹","›","§","¶","‼","〰","_","~","°","±","×","÷","≈","≠","≤","≥","→","←","↑","↓","∑","∞","√","∅","∈","∉"] },
 ];
 
 function openEmojiPicker(textarea, e) {
@@ -1771,9 +1780,10 @@ function openEmojiPicker(textarea, e) {
   const grid   = picker.querySelector("#ep-grid");
 
   function renderTabs() {
-    const defs = [{ id:"all", label:"Todos" }, ...EMOJI_GROUPS.map(g => ({ id:g.cat, label:g.cat }))];
+    const defs = [{ id:"all", icon:"✨", title:"Todos" },
+                  ...EMOJI_GROUPS.map(g => ({ id:g.cat, icon:[...g.cat][0], title:g.cat }))];
     tabs.innerHTML = defs.map(t =>
-      `<button class="ep-tab${t.id===activeTab?" active":""}" data-tab="${t.id}">${t.label}</button>`
+      `<button class="ep-tab${t.id===activeTab?" active":""}" data-tab="${t.id}" title="${t.title}">${t.icon}</button>`
     ).join("");
   }
   function renderGrid(q) {
@@ -1797,6 +1807,7 @@ function openEmojiPicker(textarea, e) {
 
   renderTabs(); renderGrid("");
   tabs.addEventListener("click", ev => {
+    ev.stopPropagation(); // evita que el picker se cierre al hacer clic en un tab
     const btn = ev.target.closest(".ep-tab"); if (!btn) return;
     activeTab = btn.dataset.tab; search.value = ""; renderTabs(); renderGrid("");
   });
@@ -2630,15 +2641,20 @@ async function doRestart() {
 // ── QR Modal ──────────────────────────────────────────
 let _netInfo = null;
 let _selectedNetIdx = 0;
+function getSelectedNetBase() {
+  const set  = _netInfo?.allQrSets?.[_selectedNetIdx];
+  const port = location.port || 3000;
+  return set ? `${set.protocol}://${set.host}:${port}` : location.origin;
+}
+
 async function showQRModal(type, e) {
   e.preventDefault();
   if (!_netInfo) _netInfo = await fetch("/api/network").then(r => r.json());
-  const info = _netInfo;
-  const host = info.hostname || info.preferredIp;
-  const base = host ? `${location.protocol}//${host}:${location.port||3000}` : location.origin;
+  const set  = _netInfo.allQrSets?.[_selectedNetIdx];
+  const base = getSelectedNetBase();
   const labels = { teleprompter:"Teleprompter", remote:"Mando remoto", editor:"Editor" };
   const urls   = { teleprompter:`${base}/teleprompter.html`, remote:`${base}/remote.html`, editor:`${base}/` };
-  const svg    = info.qrCodes?.[type] || "";
+  const svg    = (set?.qrCodes?.[type] || _netInfo.qrCodes?.[type] || "");
   document.getElementById("qr-modal-content").innerHTML = `
     <div style="background:#fff;border-radius:20px;padding:24px 28px 20px;
                 display:flex;flex-direction:column;align-items:center;gap:12px;cursor:default">
@@ -2649,6 +2665,11 @@ async function showQRModal(type, e) {
       <div style="font-size:11px;color:#999">${urls[type]||""}</div>
     </div>`;
   document.getElementById("qr-modal").style.display = "flex";
+}
+
+function openNetUrl(path) {
+  const base = _netInfo ? getSelectedNetBase() : location.origin;
+  window.open(base + path, "_blank");
 }
 
 let toastTimer;
