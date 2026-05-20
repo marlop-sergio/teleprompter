@@ -2207,34 +2207,63 @@ function switchRTab(name, btn) {
 
 async function renderNetTab() {
   if (!_netInfo) _netInfo = await fetch("/api/network").then(r => r.json());
-  const info = _netInfo;
-  const proto = location.protocol;
-  const host  = info.hostname || info.preferredIp;
+  renderNetIps();
+  renderNetQrs();
+}
+
+function renderNetIps() {
+  const info  = _netInfo;
+  const sets  = info?.allQrSets || [];
   const port  = location.port || 3000;
-
-  // IPs
   const ipsEl = document.getElementById("net-tab-ips");
-  let html = "";
-  if (info.hostname)
-    html += `<div style="font-size:14px;font-weight:600;color:var(--accent)">${proto}//${info.hostname}:${port} <span style="font-size:10px;color:var(--text2)">(hostname)</span></div>`;
-  (info.allIps||[]).forEach(ip =>
-    html += `<div style="font-size:13px;color:var(--text2)">${proto}//${ip}:${port}</div>`
-  );
-  if (!html) html = `<div style="color:var(--text2);font-size:13px">Sin IP de red local detectada</div>`;
-  ipsEl.innerHTML = html;
 
-  // QR cards
+  if (!sets.length) {
+    ipsEl.innerHTML = `<div style="color:var(--text2);font-size:13px">Sin IP de red local detectada</div>`;
+    return;
+  }
+
+  ipsEl.innerHTML = sets.map((s, i) => {
+    const active = i === _selectedNetIdx;
+    const isHostname = s.host === info.hostname;
+    const label = isHostname
+      ? `${s.protocol}://${s.host}:${port} <span style="font-size:10px;opacity:.6">(hostname)</span>`
+      : `${s.protocol}://${s.host}:${port}`;
+    return `
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="selectNetHost(${i})" style="
+          flex-shrink:0;width:22px;height:22px;border-radius:50%;border:2px solid ${active?"var(--accent)":"var(--border)"};
+          background:${active?"var(--accent)":"transparent"};cursor:pointer;
+          display:flex;align-items:center;justify-content:center;transition:all .15s">
+          ${active?`<span style="width:8px;height:8px;border-radius:50%;background:#0b0c0f;display:block"></span>`:""}
+        </button>
+        <div style="font-size:13px;color:${active?"var(--accent)":"var(--text2)"};font-weight:${active?600:400}">${label}</div>
+      </div>`;
+  }).join("");
+}
+
+function selectNetHost(idx) {
+  _selectedNetIdx = idx;
+  renderNetIps();
+  renderNetQrs();
+}
+
+function renderNetQrs() {
+  const info  = _netInfo;
+  const sets  = info?.allQrSets || [];
   const qrsEl = document.getElementById("net-tab-qrs");
-  if (!info.qrCodes || !host) { qrsEl.innerHTML = ""; return; }
+  const set   = sets[_selectedNetIdx];
+  if (!set) { qrsEl.innerHTML = ""; return; }
+
+  const base = `${set.protocol}://${set.host}:${location.port || 3000}`;
   const cards = [
-    { key:"editor",       label:"EDITOR",                url:`${proto}//${host}:${port}/` },
-    { key:"remote",       label:"MANDO REMOTO",          url:`${proto}//${host}:${port}/remote.html` },
-    { key:"teleprompter", label:"TELEPROMPTER (cast)",   url:`${proto}//${host}:${port}/teleprompter.html` },
+    { key:"editor",       label:"EDITOR",              url:`${base}/` },
+    { key:"remote",       label:"MANDO REMOTO",        url:`${base}/remote.html` },
+    { key:"teleprompter", label:"TELEPROMPTER (cast)", url:`${base}/teleprompter.html` },
   ];
   qrsEl.innerHTML = cards.map(c => `
     <div style="background:#fff;border-radius:16px;padding:20px 24px 16px;
                 display:flex;flex-direction:column;align-items:center;gap:10px">
-      ${(info.qrCodes[c.key]||"").replace("<svg","<svg width='180' height='180'")}
+      ${(set.qrCodes[c.key]||"").replace("<svg","<svg width='180' height='180'")}
       <div style="font-size:10px;font-weight:700;letter-spacing:.14em;color:#444">${c.label}</div>
       <div style="font-size:10px;color:#999;word-break:break-all;text-align:center">${c.url}</div>
     </div>`).join("");
@@ -2600,6 +2629,7 @@ async function doRestart() {
 
 // ── QR Modal ──────────────────────────────────────────
 let _netInfo = null;
+let _selectedNetIdx = 0;
 async function showQRModal(type, e) {
   e.preventDefault();
   if (!_netInfo) _netInfo = await fetch("/api/network").then(r => r.json());
