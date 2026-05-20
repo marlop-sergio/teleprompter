@@ -1,0 +1,87 @@
+{
+  "title": "Parla Barrio a Barrio — Especial Podcast (Versión B: alcalde acepta)",
+  "participants": [
+    { "id": "p1", "name": "Lourdes",   "colorIdx": 0 },
+    { "id": "p2", "name": "Eva María", "colorIdx": 4 },
+    { "id": "p3", "name": "Juan Luis", "colorIdx": 8 }
+  ],
+  "blocks": [
+    {
+      "title": "Bloque 1 — El unboxing de la realidad",
+      "time": "00:00 – 02:30",
+      "lines": [
+        { "type": "note", "text": "Este bloque sirve para enganchar al oyente. Hablad despacio, transmitiendo la ironía de la situación con el poste." },
+        { "type": "note", "text": "(Con tono muy animado y cercano)" },
+        { "participantId": "p1", "text": "¡Buenas tardes, Parla! Qué alegría saludaros a todos. Lo que os traemos hoy para arrancar este ratito en Se va a liar no es una sección aburrida de esas que te dan ganas de cambiar de canal. ¡Para nada! Es una auténtica obra de arte... pero del surrealismo más puro. Yo soy Lourdes, y a mi lado tengo a dos personas con las que da gusto salir a la calle. ¡Eva María y Juan Luis!", "type": "line" },
+        { "type": "note", "text": "(Con una sonrisa en la voz)" },
+        { "participantId": "p2", "text": "Hola a todos, buenas tardes. Pues sí, Lourdes, aquí estamos por fin, con muchísima ilusión.", "type": "line" },
+        { "type": "note", "text": "(Con energía y tono cercano)" },
+        { "participantId": "p3", "text": "¡Muy buenas, Parla! Qué ganas teníamos de arrancar y, sobre todo, de ponerle voz a las cosas que todos los vecinos nos encontramos al salir de casa pero que parece que nunca salen en las noticias.", "type": "line" },
+        { "participantId": "p1", "text": "Bueno, es que mirad qué foto traemos hoy para el estreno. Esto que veis es una parada de autobús de aquí de nuestra ciudad. Un poste rojo, imponente, brillante, majestuoso... rojo como la vergüenza ajena que da mirarlo. Eva, por favor, descríbele a los oyentes qué es lo que le falta a este maravilloso monumento urbano.", "type": "line" },
+        { "type": "note", "text": "(Se ríe con ironía)" },
+        { "participantId": "p2", "text": "Pues a ver... nos plantan el poste para decirnos que aquí para el autobús. Lleva ahí un montón de tiempo. ¡Pero se les ha olvidado el pequeño detalle de la marquesina! O sea, que si eres un vecino de Parla y te toca esperar el transporte público resguardado de la lluvia o del solazo que hace en pleno verano, tienes que usar los superpoderes o traerte el paraguas de casa. Un poste muy vistoso, sí, pero que no quita el sol ni da ningún servicio.", "type": "line" },
+        { "type": "note", "text": "(Apuntando con humor)" },
+        { "participantId": "p3", "text": "¡Es que es una parada minimalista, Eva! Te ponen el palo y el techo te lo pones tú mentalmente. ¡Aquí lo que nos sobra es creatividad y lo que nos falta es todo lo demás! Pero que nadie se preocupe, porque precisamente para cambiar esto nacemos nosotros.", "type": "line" }
+      ]
+    },
+    {
+      "title": "Bloque 2 — Qué es Parla Barrio a Barrio",
+      "time": "02:30 – 04:30",
+      "lines": [
+        { "type": "note", "text": "Aquí marcamos la identidad: plural, independiente y sin etiquetas. Tono firme y seguro." },
+        { "participantId": "p1", "text": "Sencillamente, somos vecinos de a pie. De los que van al mercado, caminan por estas calles y barren su puerta. Este es el avance real de nuestro proyecto, del Programa Número 1. Y antes de seguir, queremos dejar una cosa grabada a fuego para que no haya malentendidos: este programa no está vinculado a ningún partido político, a ninguna religión, ni a ninguna raza. Aquí no hay carnets ni etiquetas de ningún tipo.", "type": "line" },
+        { "participantId": "p2", "text": "Totalmente, Lourdes. Es que nosotros no representamos a ninguna sigla ni a ningún interés oculto. Somos una plataforma vecinal generalista y plural. Nos da exactamente igual de dónde venga cada uno o en qué crea. Lo único que nos une es que somos vecinos de Parla y que queremos ver cómo mejoran nuestras calles. Por eso nos vamos a dedicar a recorrer todos los barrios de la ciudad, para sacar a la luz situaciones como este poste.", "type": "line" },
+        { "participantId": "p3", "text": "Porque esto no es un caso aislado. Parla entera tiene rincones, parques y plazas que llevan demasiado tiempo esperando una respuesta decente que nunca llega. Y nosotros nos hemos cansado de esperar. Vamos a venir a este podcast a contarlo todo de forma muy transparente: con las fechas de las promesas y enseñando las fotos que lo demuestran.", "type": "line" },
+        { "participantId": "p1", "text": "Somos más de 137.000 personas conviviendo en este municipio. Somos una gran ciudad y nos merecemos soluciones reales, no parches de colores en las aceras. ¡Andaremos el camino barrio a barrio!", "type": "line" }
+      ]
+    },
+    {
+      "title": "Bloque 3 — La mesa de los 137.000: el alcalde acepta",
+      "time": "04:30 – 07:30",
+      "lines": [
+        { "type": "note", "text": "Versión B: el alcalde ha aceptado la invitación. Tono de celebración contenida, cálido y colaborativo. Transmitid emoción real sin resultar exagerados." },
+        { "participantId": "p3", "text": "Y cuando os decimos que lo vamos a poner sobre la mesa, es una realidad. En nuestro estreno oficial no vais a escuchar monólogos aburridos. Para nada. Nuestra mesa de trabajo está pensada para que se siente todo el municipio: los vecinos de a pie, las asociaciones de toda la vida, los comerciantes y hosteleros que sufren cada día para levantar la persiana y, por supuesto, también las instituciones y los partidos políticos.", "type": "line" },
+        { "participantId": "p2", "text": "Todos tienen que tener su silla en esta mesa. Sin excepción alguna. Porque mirad, los problemas del día a día no tienen color político. Un bache en la carretera no te pregunta a quién votas antes de meterte la rueda dentro y romperte el coche. Una acera rota la tropieza cualquiera. Las necesidades de la ciudad son de todos los ciudadanos.", "type": "line" },
+        { "type": "note", "text": "(Con tono irónico)" },
+        { "participantId": "p1", "text": "Desde luego, los baches en Parla son lo más democrático que tenemos. Pero hablando en serio: esta mesa no nace para pelearnos, sino con un espíritu de colaboración sincera. Queremos sentarnos de una manera cercana y madura para resolver las cosas, para que se escuche a la gente y, sobre todo, para que después de hablar... ¡pase algo! Que no se quede todo en palabras bonitas.", "type": "line" },
+        { "participantId": "p3", "text": "Exacto, buscamos que pasen cosas. Y para demostrar que vamos en serio desde el minuto uno, le enviamos una invitación formal a nuestro alcalde, Ramón Jurado. Una invitación para que se siente con nosotros en el primer programa y hable directamente con los vecinos.", "type": "line" },
+        { "type": "note", "text": "(Con entusiasmo genuino, sin exagerar)" },
+        { "participantId": "p2", "text": "Y tenemos una noticia muy buena, compañeros. Ramón ha aceptado. Así, sin rodeos. Ha dicho que sí. Y eso para nosotros es una señal extraordinariamente positiva, porque significa que hay voluntad real de dialogar, de escuchar y de sentarse cara a cara con los vecinos. Eso hay que reconocerlo y valorarlo.", "type": "line" },
+        { "type": "note", "text": "(Con calidez, sin perder el punto irónico que la caracteriza)" },
+        { "participantId": "p1", "text": "Que sí, que sí... ¡que el alcalde va a estar en el programa! Y nosotras le recibimos con los brazos abiertos y con todas las preguntas que nos habéis ido mandando los vecinos. Porque esta mesa no es un homenaje ni un escaparate. Es una conversación real, de vecino a vecino, sobre la actualidad de Parla y la realidad de sus barrios.", "type": "line" },
+        { "participantId": "p3", "text": "Exactamente. Ramón, bienvenido a la mesa de los 137.000. Sabemos que no es fácil sentarse delante de un micrófono libre y sin filtros, y te lo agradecemos sinceramente. Estamos convencidos de que este tipo de diálogo abierto y sin tensiones es lo mejor que le puede pasar a este municipio.", "type": "line" },
+        { "participantId": "p2", "text": "Y para los que estéis escuchando: si tenéis algo que queráis que le preguntemos al alcalde en el estreno, ya sabéis dónde encontrarnos. Esta es también vuestra mesa.", "type": "line" }
+      ]
+    },
+    {
+      "title": "Bloque 4 — Reto viral: busca el poste",
+      "time": "07:30 – 09:30",
+      "lines": [
+        { "type": "note", "text": "Volvemos arriba con la energía y el ritmo. Espacio para activar a los oyentes." },
+        { "type": "note", "text": "(Con tono muy arriba y animado)" },
+        { "participantId": "p1", "text": "Y oye, que el alcalde venga al programa no significa que nos vayamos a quedar de brazos cruzados esperando. ¡Para nada! ¡Lanzamos oficialmente el reto a toda Parla! Queremos que vuestros teléfonos echen humo. Mandadnos fotos de las joyas que tengáis en vuestras zonas.", "type": "line" },
+        { "participantId": "p3", "text": "¡Eso es! Si tenéis una farola plantada justo en mitad de la acera que os obliga a bajaros a la carretera con el carrito del bebé, o un bache en la calle donde cabe un coche entero, ¡hacedle una foto y nos la enviáis!", "type": "line" },
+        { "participantId": "p2", "text": "El mejor horror vecinal se ganará por derecho propio ser el protagonista de nuestro primer programa. Pero mandádnoslo completo, ¿eh? Necesitamos vuestro nombre y apellidos, el nombre de la calle, el barrio exacto para poder ubicarlo y, súper importante, una descripción real de lo que está pasando allí. Nosotras nos comprometemos a que ninguna queja se va a quedar guardada en el fondo de un cajón.", "type": "line" },
+        { "participantId": "p3", "text": "Nos podéis encontrar ya mismo en las redes sociales. Estamos en Instagram y en Facebook exactamente con el mismo nombre: Parla Barrio a Barrio. Buscadnos, dadle a seguir y empezad a enviarnos vuestras fotos y vuestros mensajes. ¡Que no se quede ni un solo vecino sin voz!", "type": "line" },
+        { "type": "note", "text": "📌 NOTA DE REDACCIÓN: Momento sugerido para mencionar la torre eléctrica de la calle Octavio Paz. Llevan 23 años esperando el soterramiento prometido." },
+        { "type": "note", "text": "(Con tono entre indignado y divertido)" },
+        { "participantId": "p1", "text": "Y mira, ya que estamos lanzando retos, os ponemos un ejemplo de campeonato. En la calle Octavio Paz hay una torre eléctrica que lleva... a ver si lo adivináis... ¡23 años esperando su soterramiento! Veintitres años, compañeros. Ahí sigue la torre, tan campante, como si fuera parte del paisaje. Como si fuera un monumento histórico de Parla. ¡Pero si ya le deberían haber puesto una placa!", "type": "line" },
+        { "type": "note", "text": "(Con sorna)" },
+        { "participantId": "p3", "text": "Efectivamente. Veintitrés años de promesas, de expedientes, de reuniones y de presupuestos que nunca llegan. Y la torre, ahí. Imperturbable. Con más arraigo en el barrio que muchos de nosotros. Pues bien, ese es exactamente el tipo de situación que Parla Barrio a Barrio no va a dejar en el olvido.", "type": "line" },
+        { "participantId": "p2", "text": "Así que si vivís cerca de Octavio Paz o de cualquier otra calle donde haya una promesa pendiente desde hace años, ya sabéis lo que tenéis que hacer: foto, nombre de la calle y a mandárnosla. Que cada promesa incumplida merece su espacio en este programa.", "type": "line" }
+      ]
+    },
+    {
+      "title": "Bloque 5 — Cierre con energía",
+      "time": "09:30 – 10:00",
+      "lines": [
+        { "type": "note", "text": "El último medio minuto. Fuerza, confianza y broche final." },
+        { "participantId": "p2", "text": "Vecinos y vecinas, de verdad, no os podéis perder el estreno de nuestro programa número uno. Venimos dispuestos a ponerle voz a la foto de este poste y a todo lo que nos hagáis llegar.", "type": "line" },
+        { "participantId": "p3", "text": "¡Arrancamos ya mismo!", "type": "line" },
+        { "type": "note", "text": "(Mirando fijamente al micrófono, con toda la fuerza del mundo)" },
+        { "participantId": "p1", "text": "Ya lo sabéis. Parla Barrio a Barrio llega muy pronto a Estelar Media... ¡y os aseguramos que se va a liar de verdad!", "type": "line" },
+        { "type": "note", "text": "🎙 Los tres, con una sonrisa gigante: ¡Hasta pronto, Parla!" }
+      ]
+    }
+  ]
+}

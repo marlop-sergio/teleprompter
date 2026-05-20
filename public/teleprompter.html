@@ -227,6 +227,7 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 
 let COLORS=[], script=null, playing=false, speed=45, fontSize=56, speakerSize=22, noteSize=42;
+let fastForward=false, ffMultiplier=3.5;
 let stopAtBlockEnd=false, _stoppedBlocks=new Set(), _stopCooldown=false, showSpeakerNames=true;
 let myClientId=null, _rotDeg=0, _flipH=false, _flipV=false;
 let participantPhotos={};
@@ -274,7 +275,9 @@ function connectWS(){
     case "reset":       playing=false; scrollPx=0; stopScroll(); applyScroll(); _stoppedBlocks.clear(); break;
     case "scroll_to":   smoothScrollTo(msg.px??scrollPx, 150); break;
     case "jump_block":  jumpToBlock(msg.index); break;
-    case "set_speed":   speed=msg.value; break;
+    case "set_speed":         speed=msg.value; break;
+    case "set_fast_forward":  fastForward=msg.value; break;
+    case "set_ff_multiplier": ffMultiplier=msg.value; break;
     case "set_font":    fontSize=msg.value; applyFontVars(); break;
     case "set_config":  applyConfig(msg.config); break;
     case "voice_advance": voiceAdvance(msg.lines); break;
@@ -498,7 +501,9 @@ function renderHUDParticipants(participants){
 function applyPlayhead(ph){
   if(!ph) return;
   speed=ph.speed; fontSize=ph.fontSize; playing=ph.playing; scrollPx=ph.scrollPx;
-  if(ph.speakerSize!=null) speakerSize=ph.speakerSize;
+  if(ph.speakerSize!=null)   speakerSize=ph.speakerSize;
+  if(ph.fastForward!=null)   fastForward=ph.fastForward;
+  if(ph.ffMultiplier!=null)  ffMultiplier=ph.ffMultiplier;
   applyFontVars(); applyScroll();
   if(playing) startScroll();
 }
@@ -598,7 +603,7 @@ function tick(ts){
         if(r.bottom>=fy-60 && r.top<=fy+60){fastMode=true;break;}
       }
     }
-    scrollPx+=speed*(fastMode?3.5:1)*dt;
+    scrollPx+=speed*((fastMode||fastForward)?ffMultiplier:1)*dt;
     applyScroll();
   }
   updateActiveLine();

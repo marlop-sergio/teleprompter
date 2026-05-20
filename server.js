@@ -96,13 +96,15 @@ const state = {
   activeScriptId: null,
   script: null,
   playhead: {
-    blockIndex: 0,
-    lineIndex:  0,
-    scrollPx:   0,
-    playing:    false,
-    speed:      45,
-    fontSize:   56,
-    config:     loadSavedConfig(),
+    blockIndex:   0,
+    lineIndex:    0,
+    scrollPx:     0,
+    playing:      false,
+    speed:        45,
+    fontSize:     56,
+    fastForward:  false,
+    ffMultiplier: 3.5,
+    config:       loadSavedConfig(),
   },
   clock: {
     visible:  true,
@@ -491,6 +493,16 @@ function handleMessage(ws, msg) {
     case "set_speed":
       state.playhead.speed = clamp(msg.value, 5, 250);
       broadcastAll({ type: "set_speed", value: state.playhead.speed });
+      break;
+
+    case "set_fast_forward":
+      state.playhead.fastForward = !!msg.value;
+      broadcastAll({ type: "set_fast_forward", value: state.playhead.fastForward });
+      break;
+
+    case "set_ff_multiplier":
+      state.playhead.ffMultiplier = Math.max(1, Math.min(10, +msg.value || 3.5));
+      broadcastAll({ type: "set_ff_multiplier", value: state.playhead.ffMultiplier });
       break;
 
     case "set_font":

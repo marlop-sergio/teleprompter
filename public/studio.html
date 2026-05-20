@@ -244,10 +244,15 @@ select option{background:var(--s2)}
 }
 .btn-big .icon{font-size:28px;line-height:1}
 .btn-play-big{
-  grid-column:1/-1;padding:22px;font-size:15px;
+  padding:22px;font-size:15px;
   background:rgba(94,234,212,.12);border:1.5px solid rgba(94,234,212,.25);color:var(--green);
 }
 .btn-play-big.playing{background:rgba(251,113,133,.1);border-color:rgba(251,113,133,.2);color:var(--red)}
+.btn-ff-big{
+  padding:22px;font-size:15px;
+  background:rgba(251,191,36,.08);border:1.5px solid rgba(251,191,36,.2);color:#a38d2e;
+}
+.btn-ff-big.active{background:rgba(251,191,36,.18);border-color:rgba(251,191,36,.5);color:#fbbf24}
 
 /* Sliders */
 .slider-section{padding:0 14px 14px}
@@ -581,6 +586,10 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
         <span class="icon" id="play-icon">▶</span>
         <span id="play-label">Reproducir</span>
       </button>
+      <button class="btn btn-big btn-ff-big" id="ff-btn" onclick="toggleFastForward()" title="Avance rápido">
+        <span class="icon">⏩</span>
+        <span id="ff-label">Rápido</span>
+      </button>
       <button class="btn btn-ghost btn-big" onclick="nudge(300)">
         <span class="icon">↓</span><span>Avanzar</span>
       </button>
@@ -595,6 +604,14 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
         </div>
         <input type="range" id="speed-range" min="5" max="200" value="45"
                oninput="onSpeed(this.value)">
+      </div>
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-label">Vel. rápido</span>
+          <span class="slider-val" id="ff-mult-val">3.5×</span>
+        </div>
+        <input type="range" id="ff-mult-range" min="1.5" max="8" step="0.5" value="3.5"
+               oninput="onFfMultiplier(this.value)">
       </div>
       <div class="slider-row">
         <div class="slider-header">
@@ -891,7 +908,9 @@ let COLORS     = [];
 let scripts    = [];
 let activeScriptId = null;
 let script     = null;   // {id, title, participants:[], blocks:[]}
-let playing    = false;
+let playing     = false;
+let fastForward = false;
+let ffMultiplier = 3.5;
 let speed      = 45;
 let fontSize   = 56;
 let scrollPx   = 0;
@@ -927,6 +946,7 @@ let voiceLastText = "";
 
 // active speaker for new lines
 let activeSpeakerIdx = 0;
+let _lastFocusedLine = null; // { bi, li } de la última textarea con foco
 
 // color picker state
 let colorPickerTarget = null; // {participantIdx}
@@ -964,16 +984,19 @@ function connectWS() {
       scripts = msg.scripts || [];
       if (msg.participantPhotos) participantPhotos = msg.participantPhotos;
       if (msg.script) { script = msg.script; activeScriptId = msg.activeScriptId; }
-      speed    = msg.playhead?.speed    || 45;
-      fontSize = msg.playhead?.fontSize || 56;
-      playing  = msg.playhead?.playing  || false;
-      scrollPx = msg.playhead?.scrollPx || 0;
+      speed        = msg.playhead?.speed        || 45;
+      fontSize     = msg.playhead?.fontSize     || 56;
+      playing      = msg.playhead?.playing      || false;
+      scrollPx     = msg.playhead?.scrollPx     || 0;
+      fastForward  = msg.playhead?.fastForward  || false;
+      ffMultiplier = msg.playhead?.ffMultiplier ?? 3.5;
       if (msg.config) applyConfigFromMsg(msg.config);
       applyClock(msg.clock);
       buildColorPicker();
       renderScriptsList();
       renderEditor();
       syncPlayUI();
+      syncFfUI();
       syncSliders();
       // Auto-cargar último guión solo si el servidor no tiene ninguno activo
       if (!msg.script && msg.lastScriptId) loadScript(msg.lastScriptId);
@@ -1006,8 +1029,10 @@ function connectWS() {
     case "play":   playing = true;  syncPlayUI(); break;
     case "pause":  playing = false; syncPlayUI(); break;
     case "reset":  playing = false; scrollPx = 0; syncPlayUI(); break;
-    case "set_speed": speed = msg.value; syncSliders(); break;
-    case "set_font":  fontSize = msg.value; syncSliders(); break;
+    case "set_speed":         speed = msg.value; syncSliders(); break;
+    case "set_font":          fontSize = msg.value; syncSliders(); break;
+    case "set_fast_forward":  fastForward = msg.value; syncFfUI(); break;
+    case "set_ff_multiplier": ffMultiplier = msg.value; syncSliders(); break;
     case "scroll_to": scrollPx = msg.px ?? scrollPx; break;
     case "sync_scroll": scrollPx = msg.px; break;
     case "jump_block": updateActiveBlock(msg.index); break;
@@ -1389,7 +1414,8 @@ function renderLineHTML(line, bi, li) {
            onclick="openSpeakerPicker(${bi},${li},event)"></div>
       <textarea class="line-textarea"
                 onchange="onLineText(${bi},${li},this.value)"
-                oninput="autoResize(this)">${esc(line.text||"")}</textarea>
+                oninput="autoResize(this)"
+                onfocus="_lastFocusedLine={bi:${bi},li:${li}}">${esc(line.text||"")}</textarea>
       <button class="line-emoji" onclick="openEmojiPicker(this.closest('.line-editor').querySelector('.line-textarea'),event)" title="Insertar emoji">😊</button>
       <button class="line-jump" onclick="jumpToLine(${bi},${li})" title="Saltar a esta línea en el teleprónter">⤵</button>
       <button class="line-del" onclick="removeLine(${bi},${li})" title="Eliminar línea">×</button>
@@ -1487,17 +1513,21 @@ function onBlockTime(bi, val)  { script.blocks[bi].time  = val; renderBlockNav()
 // Line ops
 function addLine(bi) {
   const p = script.participants?.[activeSpeakerIdx];
-  script.blocks[bi].lines.push({
+  const newLine = {
     participantId: p?.id || script.participants?.[0]?.id || "p0",
     text: "",
     type: "line",
-  });
+  };
+  const lines = script.blocks[bi].lines;
+  const insertAfter = (_lastFocusedLine?.bi === bi) ? _lastFocusedLine.li : lines.length - 1;
+  const insertAt = insertAfter + 1;
+  lines.splice(insertAt, 0, newLine);
+  _lastFocusedLine = { bi, li: insertAt };
   renderBlocks();
   markDirty();
-  // Focus new textarea
   setTimeout(() => {
-    const lines = document.querySelectorAll(`#block-lines-${bi} .line-textarea`);
-    if (lines.length) lines[lines.length-1].focus();
+    const textareas = document.querySelectorAll(`#block-lines-${bi} .line-textarea`);
+    if (textareas[insertAt]) textareas[insertAt].focus();
   }, 50);
 }
 
@@ -2024,6 +2054,17 @@ function syncPlayUI() {
   lbl.textContent = playing ? "Pausar" : "Reproducir";
 }
 
+function toggleFastForward() {
+  fastForward = !fastForward;
+  send({ type:"set_fast_forward", value: fastForward });
+  syncFfUI();
+}
+
+function syncFfUI() {
+  document.getElementById("ff-btn").classList.toggle("active", fastForward);
+  document.getElementById("ff-label").textContent = fastForward ? "Rápido ✓" : "Rápido";
+}
+
 function nudge(delta) {
   scrollPx = Math.max(0, scrollPx + delta);
   send({ type:"scroll_to", px: scrollPx });
@@ -2043,11 +2084,20 @@ function onFont(v) {
   clearTimeout(fontT);
   fontT = setTimeout(() => send({ type:"set_font", value:+v }), 80);
 }
+let ffMultT;
+function onFfMultiplier(v) {
+  ffMultiplier = +v;
+  document.getElementById("ff-mult-val").textContent = (+v).toFixed(1) + "×";
+  clearTimeout(ffMultT);
+  ffMultT = setTimeout(() => send({ type:"set_ff_multiplier", value: ffMultiplier }), 80);
+}
 function syncSliders() {
-  document.getElementById("speed-val").textContent  = speed;
-  document.getElementById("speed-range").value      = speed;
-  document.getElementById("font-val").textContent   = fontSize;
-  document.getElementById("font-range").value       = fontSize;
+  document.getElementById("speed-val").textContent      = speed;
+  document.getElementById("speed-range").value          = speed;
+  document.getElementById("ff-mult-val").textContent    = ffMultiplier.toFixed(1) + "×";
+  document.getElementById("ff-mult-range").value        = ffMultiplier;
+  document.getElementById("font-val").textContent       = fontSize;
+  document.getElementById("font-range").value           = fontSize;
   syncConfigTab();
 }
 
@@ -2441,6 +2491,8 @@ function stopVoice() {
 // ══════════════════════════════════════════════════════
 const _clientMenuState = new Map(); // clientId → {rotDeg:0, flipH:false, flipV:false}
 let _clientMenuTarget = null;
+let _clientMenuRole   = null;
+let _menuOutsideHandler = null;
 
 function renderClients(list) {
   const el = document.getElementById("clients-bar");
@@ -2457,19 +2509,12 @@ function renderClients(list) {
   }).join("");
 }
 
-function openClientMenu(clientId, role, pill, e) {
-  e.stopPropagation();
+function buildClientMenuContent(clientId, role) {
   const menu = document.getElementById("client-menu");
-  if (_clientMenuTarget === clientId && menu.classList.contains("open")) {
-    closeClientMenu(); return;
-  }
-  _clientMenuTarget = clientId;
-  if (!_clientMenuState.has(clientId)) _clientMenuState.set(clientId, {rotDeg:0, flipH:false, flipV:false});
-  const st = _clientMenuState.get(clientId);
-
+  const st   = _clientMenuState.get(clientId);
   const isTp = role === "teleprompter";
   menu.innerHTML = `
-    <div class="cmenu-header">${role === "teleprompter" ? "📺 Teleprónter" : "📱 Mando"}</div>
+    <div class="cmenu-header">${isTp ? "📺 Teleprónter" : "📱 Mando"}</div>
     <button class="cmenu-item" onclick="clientCmd('${clientId}','reload')">↺ &nbsp;Recargar página</button>
     <button class="cmenu-item" onclick="clientCmd('${clientId}','beep')">🔔 &nbsp;Pitido</button>
     ${isTp ? `<div class="cmenu-sep"></div>
@@ -2477,20 +2522,39 @@ function openClientMenu(clientId, role, pill, e) {
     <button class="cmenu-item" onclick="clientCmd('${clientId}','flip_v')">↕ &nbsp;Voltear vertical ${st.flipV?"✓":""}</button>
     <button class="cmenu-item" onclick="clientCmd('${clientId}','rotate')">↻ &nbsp;Rotar 90° <span style="color:var(--text2);font-size:10px">(ahora ${st.rotDeg}°)</span></button>` : ""}
   `;
+}
+
+function openClientMenu(clientId, role, pill, e) {
+  e.stopPropagation();
+  const menu = document.getElementById("client-menu");
+  if (_clientMenuTarget === clientId && menu.classList.contains("open")) {
+    closeClientMenu(); return;
+  }
+  _clientMenuTarget = clientId;
+  _clientMenuRole   = role;
+  if (!_clientMenuState.has(clientId)) _clientMenuState.set(clientId, {rotDeg:0, flipH:false, flipV:false});
+
+  buildClientMenuContent(clientId, role);
   const rect = pill.getBoundingClientRect();
   menu.style.top  = (rect.bottom + 6) + "px";
   menu.style.left = rect.left + "px";
   menu.classList.add("open");
 
-  setTimeout(() => document.addEventListener("mousedown", closeClientMenuOutside, {once:true}), 0);
+  if (_menuOutsideHandler) document.removeEventListener("mousedown", _menuOutsideHandler);
+  _menuOutsideHandler = (ev) => {
+    if (!menu.contains(ev.target)) closeClientMenu();
+  };
+  setTimeout(() => document.addEventListener("mousedown", _menuOutsideHandler), 0);
 }
 
-function closeClientMenuOutside(e) {
-  if (!document.getElementById("client-menu").contains(e.target)) closeClientMenu();
-}
 function closeClientMenu() {
   document.getElementById("client-menu").classList.remove("open");
   _clientMenuTarget = null;
+  _clientMenuRole   = null;
+  if (_menuOutsideHandler) {
+    document.removeEventListener("mousedown", _menuOutsideHandler);
+    _menuOutsideHandler = null;
+  }
 }
 
 function clientCmd(clientId, cmd) {
@@ -2499,7 +2563,7 @@ function clientCmd(clientId, cmd) {
   if (cmd === "flip_v")  { st.flipV = !st.flipV; _clientMenuState.set(clientId, st); }
   if (cmd === "rotate")  { st.rotDeg = (st.rotDeg + 90) % 360; _clientMenuState.set(clientId, st); }
   send({ type:"client_cmd", clientId, cmd });
-  closeClientMenu();
+  if (_clientMenuRole) buildClientMenuContent(clientId, _clientMenuRole);
 }
 
 // ══════════════════════════════════════════════════════

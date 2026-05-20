@@ -264,6 +264,18 @@ input[type=range]::-webkit-slider-thumb{
 <script>
 let ws, myName="", myClientId=null, playing=false, speed=45, scrollPx=0, activeBlock=0;
 let _remoteScript=null, _remotePhotos={};
+let _wakeLock=null;
+
+async function requestWakeLock(){
+  if(!('wakeLock' in navigator)) return;
+  try{
+    _wakeLock = await navigator.wakeLock.request('screen');
+    _wakeLock.addEventListener('release', ()=>{ _wakeLock=null; });
+  }catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible' && _wakeLock===null) requestWakeLock();
+});
 let COLORS=[
   {bg:"#FFB3B3"},{bg:"#FFD4A0"},{bg:"#FFF4A0"},{bg:"#AEFFCC"},
   {bg:"#A0DEFF"},{bg:"#A0AAFF"},{bg:"#CCA0FF"},{bg:"#FFB3E8"},
@@ -368,6 +380,7 @@ function send(obj){ ws?.readyState===1&&ws.send(JSON.stringify(obj)); }
 function showControls(){
   document.getElementById("login").style.display="none";
   document.getElementById("controls").style.display="flex";
+  requestWakeLock();
   initScrollPad();
   let hash=0;
   for(let c of myName) hash=(hash*31+c.charCodeAt(0))&0xffff;
