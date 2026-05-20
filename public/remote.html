@@ -95,6 +95,7 @@ input::placeholder{color:var(--muted)}
 }
 .btn-play:active{transform:scale(.96)}
 .btn-play.playing{background:rgba(251,113,133,.1);border-color:rgba(251,113,133,.22);color:var(--red)}
+.btn-play.fast-hold{background:rgba(251,191,36,.18);border-color:rgba(251,191,36,.5);color:#fbbf24;transform:scale(.97)}
 .btn-play .icon{font-size:32px;line-height:1}
 
 /* Secondary transport */
@@ -206,9 +207,14 @@ input[type=range]::-webkit-slider-thumb{
 <!-- Controls -->
 <div id="controls">
   <div class="user-tag" id="user-tag"></div>
+  <div id="script-title-bar" style="display:none;margin:-4px 16px 6px;padding:6px 12px;
+       border-radius:8px;background:var(--s2);border:1px solid var(--border);
+       font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.04em;
+       white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+  </div>
 
   <div class="play-zone">
-    <button class="btn-tap btn-play" id="play-btn" onclick="togglePlay()">
+    <button class="btn-tap btn-play" id="play-btn">
       <span class="icon" id="play-icon">▶</span>
       <span id="play-label">Reproducir</span>
     </button>
@@ -338,10 +344,10 @@ function connectWS(){
         scrollPx=msg.playhead?.scrollPx||0;
         syncPlayBtn(); syncSlider(speed); updateThumb();
         if(msg.participantPhotos) _remotePhotos=msg.participantPhotos;
-        if(msg.script){ _remoteScript=msg.script; renderBlocks(msg.script); renderPhotoSection(msg.script); }
+        if(msg.script){ _remoteScript=msg.script; renderBlocks(msg.script); renderPhotoSection(msg.script); updateScriptTitle(msg.script); }
         break;
       case "script_loaded":
-        if(msg.script){ _remoteScript=msg.script; renderBlocks(msg.script); renderPhotoSection(msg.script); }
+        if(msg.script){ _remoteScript=msg.script; renderBlocks(msg.script); renderPhotoSection(msg.script); updateScriptTitle(msg.script); }
         break;
       case "participant_photo":
         _remotePhotos[msg.participantId]=msg.photo;
@@ -381,6 +387,7 @@ function showControls(){
   document.getElementById("login").style.display="none";
   document.getElementById("controls").style.display="flex";
   requestWakeLock();
+  initPlayButton();
   initScrollPad();
   let hash=0;
   for(let c of myName) hash=(hash*31+c.charCodeAt(0))&0xffff;
@@ -390,6 +397,14 @@ function showControls(){
   tag.innerHTML=`<span class="dot" style="background:${color.bg}"></span>${myName}`;
   tag.title="Toca para cambiar nombre";
   tag.onclick=()=>{ localStorage.removeItem("tp_remote_name"); location.reload(); };
+}
+
+// ── Script title ───────────────────────────────────────────────────────────
+function updateScriptTitle(script){
+  const bar = document.getElementById("script-title-bar");
+  if(!bar) return;
+  if(script?.title){ bar.textContent = "📋 " + script.title; bar.style.display="block"; }
+  else              { bar.style.display="none"; }
 }
 
 // ── Blocks ─────────────────────────────────────────────────────────────────
@@ -414,6 +429,53 @@ function jumpBlock(idx){ activeBlock=idx; renderBlockChips(); send({type:"jump_b
 // ── Transport ──────────────────────────────────────────────────────────────
 function togglePlay(){
   if(playing) send({type:"pause"}); else send({type:"play"});
+}
+
+function initPlayButton(){
+  const btn = document.getElementById("play-btn");
+  let holdTimer = null;
+  let holding   = false;
+  const HOLD_MS = 320;
+
+  function onStart(e){
+    holding = false;
+    holdTimer = setTimeout(() => {
+      holding = true;
+      send({type:"set_fast_forward", value:true});
+      btn.classList.add("fast-hold");
+      btn.querySelector(".icon").textContent = "⏩";
+    }, HOLD_MS);
+  }
+
+  function onEnd(e){
+    clearTimeout(holdTimer); holdTimer = null;
+    if(holding){
+      holding = false;
+      send({type:"set_fast_forward", value:false});
+      btn.classList.remove("fast-hold");
+      syncPlayBtn();
+      e.preventDefault(); // evita el click sintético tras touchend
+    } else {
+      togglePlay();
+    }
+  }
+
+  function onCancel(){
+    clearTimeout(holdTimer); holdTimer = null;
+    if(holding){
+      holding = false;
+      send({type:"set_fast_forward", value:false});
+      btn.classList.remove("fast-hold");
+      syncPlayBtn();
+    }
+  }
+
+  btn.addEventListener("touchstart",  onStart,  {passive:true});
+  btn.addEventListener("touchend",    onEnd,    {passive:false});
+  btn.addEventListener("touchcancel", onCancel);
+  btn.addEventListener("mousedown",   onStart);
+  btn.addEventListener("mouseup",     onEnd);
+  btn.addEventListener("mouseleave",  onCancel);
 }
 function doReset(){ scrollPx=0; send({type:"reset"}); updateThumb(); }
 
