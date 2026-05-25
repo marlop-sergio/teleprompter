@@ -74,6 +74,19 @@ const DEFAULT_CONFIG = {
   speakerSize: 22, noteSize: 42, contentWidth: 80,
   hideCursor: false, showServerIP: false, stopAtBlockEnd: false,
   lineSpacing: 0.8, showSpeakerNames: true,
+  showKeyDebug: true,
+  keyBindings: [
+    { action:"toggle_play",   keys:[{k:"b",s:false}] },
+    { action:"nudge_back",    keys:[{k:"PageUp",s:false}] },
+    { action:"nudge_forward", keys:[{k:"PageDown",s:false}] },
+    { action:"reset",         keys:[{k:"Escape",s:false},{k:"F5",s:true}] },
+  ],
+  clock: {
+    visible: true, showInStudio: true,
+    items: ["clock"], timerSec: 600,
+    chronoStart: null, chronoElapsed: 0,
+    timerStart: null, timerElapsed: 0,
+  },
 };
 
 function loadSavedConfig() {
@@ -107,12 +120,12 @@ const state = {
     config:       loadSavedConfig(),
   },
   clock: {
-    visible:  true,
-    items:    ["clock"],
-    timerSec: 600,
+    ...DEFAULT_CONFIG.clock,
+    ...loadSavedConfig().clock,
     chronoStart:   null,
-    chronoElapsed: 0,    // ms acumulados cuando está pausado
+    chronoElapsed: 0,
     timerStart:    null,
+    timerElapsed:  0,
   },
   clients: new Map(),       // ws → {role, id, name}
   participantPhotos: {},    // participantId → dataURL (derivado del script activo)
@@ -241,6 +254,30 @@ const requestHandler = (req, res) => {
   if (urlPath === "/api/colors") {
     res.writeHead(200, { "Content-Type": "application/json" });
     return res.end(JSON.stringify(PASTEL_COLORS));
+  }
+
+  // ── Control API ──────────────────────────────────────────────────────────
+  // POST /api/control  body: {"action":"toggle_play", ...}
+  // GET  /api/control?action=toggle_play
+  // Compatible con MacroDeck, StreamDeck, TouchPortal y cualquier controlador HTTP.
+  if (urlPath === "/api/control") {
+    const handleCtrl = (action, params) => {
+      if (!action) { res.writeHead(400); return res.end(JSON.stringify({error:"missing action"})); }
+      executeControlAction(action, params || {});
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    };
+    if (req.method === "POST") {
+      let body = "";
+      req.on("data", c => body += c);
+      req.on("end", () => { try { const p = JSON.parse(body); handleCtrl(p.action, p); } catch(e) { res.writeHead(400); res.end(JSON.stringify({error:e.message})); } });
+    } else if (req.method === "GET") {
+      const u = new URL(req.url, `${PROTOCOL}://localhost:${PORT}`);
+      handleCtrl(u.searchParams.get("action"), Object.fromEntries(u.searchParams));
+    } else {
+      res.writeHead(405); res.end("Method not allowed");
+    }
+    return;
   }
 
   if (urlPath === "/api/network") {
@@ -523,7 +560,12 @@ function handleMessage(ws, msg) {
       break;
 
     case "save_config":
-      persistConfig(state.playhead.config || {});
+      persistConfig({ ...state.playhead.config || {}, clock: {
+        visible: state.clock.visible,
+        showInStudio: state.clock.showInStudio,
+        items: state.clock.items,
+        timerSec: state.clock.timerSec,
+      }});
       send(ws, { type: "config_saved" });
       break;
 
@@ -566,6 +608,13 @@ function handleMessage(ws, msg) {
     // ── Reloj ─────────────────────────────────────────────────────────────────
     case "clock_update":
       Object.assign(state.clock, msg.clock);
+      // Persistir items, visible, timerSec (no chrono/timer running state)
+      persistConfig({ ...loadSavedConfig(), clock: {
+        visible: state.clock.visible,
+        showInStudio: state.clock.showInStudio,
+        items: state.clock.items,
+        timerSec: state.clock.timerSec,
+      }});
       broadcastAll({ type: "clock_update", clock: state.clock }, ws);
       break;
 
@@ -605,6 +654,101 @@ function handleMessage(ws, msg) {
       state.clock.timerStart   = null;
       state.clock.timerElapsed = 0;
       broadcastAll({ type: "timer_reset" });
+      break;
+
+    // ── Control externo (MacroDeck, StreamDeck, TouchPortal, etc.) ─────────
+    case "control":
+      executeControlAction(msg.action, msg, ws);
+      break;
+  }
+}
+
+// ── Control API unificada ────────────────────────────────────────────────────
+// Usada por:
+//   - HTTP  POST /api/control  y  GET /api/control?action=xxx
+//   - WS    { type:"control", action:"xxx" }
+//   - keyBindings en teleprompter (vía WS message)
+function executeControlAction(action, params, sourceWs) {
+  switch (action) {
+    case "toggle_play":
+      if (state.playhead.playing) { state.playhead.playing = false; broadcastAll({ type: "pause" }, null, sourceWs); }
+      else                        { state.playhead.playing = true;  broadcastAll({ type: "play" },  null, sourceWs); }
+      break;
+
+    case "play":
+      state.playhead.playing = true;
+      broadcastAll({ type: "play" }, null, sourceWs);
+      break;
+
+    case "pause":
+      state.playhead.playing = false;
+      broadcastAll({ type: "pause" }, null, sourceWs);
+      break;
+
+    case "reset":
+      state.playhead = { ...state.playhead, blockIndex: 0, lineIndex: 0, scrollPx: 0, playing: false };
+      broadcastAll({ type: "reset" }, null, sourceWs);
+      break;
+
+    case "nudge_back": {
+      const nb = Math.max(0, (state.playhead.scrollPx || 0) - 200);
+      state.playhead.scrollPx = nb;
+      broadcast({ type: "scroll_to", px: nb }, ["teleprompter"], sourceWs);
+      broadcast({ type: "sync_scroll", px: nb }, ["studio"], sourceWs);
+      break;
+    }
+
+    case "nudge_forward": {
+      const nf = (state.playhead.scrollPx || 0) + 300;
+      state.playhead.scrollPx = nf;
+      broadcast({ type: "scroll_to", px: nf }, ["teleprompter"], sourceWs);
+      broadcast({ type: "sync_scroll", px: nf }, ["studio"], sourceWs);
+      break;
+    }
+
+    case "jump_next_block": {
+      const maxBi = (state.script?.blocks?.length || 1) - 1;
+      const bi = Math.min((state.playhead.blockIndex || 0) + 1, maxBi);
+      state.playhead.blockIndex = bi;
+      state.playhead.scrollPx = 0;
+      broadcastAll({ type: "jump_block", index: bi }, null, sourceWs);
+      break;
+    }
+
+    case "jump_prev_block": {
+      const bi = Math.max((state.playhead.blockIndex || 0) - 1, 0);
+      state.playhead.blockIndex = bi;
+      state.playhead.scrollPx = 0;
+      broadcastAll({ type: "jump_block", index: bi }, null, sourceWs);
+      break;
+    }
+
+    case "speed_up":
+    case "speed_down": {
+      const delta = action === "speed_up" ? 10 : -10;
+      const v = clamp((state.playhead.speed || 45) + delta, 5, 250);
+      state.playhead.speed = v;
+      broadcastAll({ type: "set_speed", value: v }, null, sourceWs);
+      break;
+    }
+
+    case "speed": {
+      const v = clamp(params.value ?? state.playhead.speed, 5, 250);
+      state.playhead.speed = v;
+      broadcastAll({ type: "set_speed", value: v }, null, sourceWs);
+      break;
+    }
+
+    case "beep":
+      broadcast({ type: "client_cmd", cmd: "beep" }, ["teleprompter"], sourceWs);
+      break;
+
+    case "attention":
+      broadcast({ type: "client_cmd", cmd: "attention" }, ["teleprompter"], sourceWs);
+      break;
+
+    case "reload":
+      broadcastAll({ type: "client_cmd", cmd: "reload" }, null, sourceWs);
       break;
   }
 }

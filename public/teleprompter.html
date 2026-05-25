@@ -234,6 +234,14 @@ let participantPhotos={};
 let scrollPx=0, rafId=null, lastTs=null;
 let clockItems=["clock"], clockVisible=false, chronoStart=null, chronoElapsed=0, timerStart=null, timerElapsed=0, timerSec=600;
 
+let keyBindings = [
+  { action:"toggle_play",   keys:[{k:"b",s:false}] },
+  { action:"nudge_back",    keys:[{k:"PageUp",s:false}] },
+  { action:"nudge_forward", keys:[{k:"PageDown",s:false}] },
+  { action:"reset",         keys:[{k:"Escape",s:false},{k:"F5",s:true}] },
+];
+let _showKeyDebug = true;
+
 const contentEl  = document.getElementById("content");
 const emptyEl    = document.getElementById("empty");
 const flashEl    = document.getElementById("flash");
@@ -322,7 +330,8 @@ function connectWS(){
         case "flip_h":  _flipH=!_flipH;  applyDisplayTransform(); break;
         case "flip_v":  _flipV=!_flipV;  applyDisplayTransform(); break;
         case "rotate":  _rotDeg=(_rotDeg+90)%360; applyDisplayTransform(); break;
-        case "beep":    playBeep(); break;
+        case "beep":      playBeep(); break;
+        case "attention": flashBorder(); break;
       }
       break;
   }
@@ -473,6 +482,8 @@ function applyConfig(cfg){
     showSpeakerNames=cfg.showSpeakerNames;
     contentEl.classList.toggle("no-speakers", !showSpeakerNames);
   }
+  if(cfg.showKeyDebug!=null) _showKeyDebug=cfg.showKeyDebug;
+  if(cfg.keyBindings) keyBindings=cfg.keyBindings;
 }
 
 function jumpToLine(bi, li){
@@ -776,14 +787,29 @@ let _keyDebugTimer = null;
 const _keyDbg = document.getElementById("key-debug");
 
 function showKeyDebug(lines) {
+  if(!_showKeyDebug) return;
   _keyDbg.style.display = "block";
   _keyDbg.innerHTML = lines.join("<br>");
   clearTimeout(_keyDebugTimer);
   _keyDebugTimer = setTimeout(() => { _keyDbg.style.display = "none"; }, 4000);
 }
 
-// Teclado (HID keyboard mode)
+// Teclado (HID keyboard mode) — acciones configurables
+// NOTA: Usamos capture phase (true) para interceptar F5/Shift+F5 antes del browser
 window.addEventListener("keydown", e => {
+  // Prevenir F5/Shift+F5 siempre (evita recarga)
+  if(e.key==="F5"){ e.preventDefault(); e.stopPropagation(); }
+  const binding = keyBindings.find(b => b.keys.some(k => k&&k.k===e.key && !!k.s===!!e.shiftKey && !!k.c===!!e.ctrlKey && !!k.a===!!e.altKey));
+  if(binding){
+    e.preventDefault();
+    const send = obj => { ws?.readyState===1 && ws.send(JSON.stringify(obj)); };
+    switch(binding.action){
+      case "toggle_play":  send({type:playing?"pause":"play"}); return;
+      case "reset":        send({type:"reset"}); return;
+      case "nudge_back":   send({type:"scroll_to",px:Math.max(0,scrollPx-200)}); smoothScrollTo(Math.max(0,scrollPx-200),150); return;
+      case "nudge_forward": send({type:"scroll_to",px:scrollPx+300}); smoothScrollTo(scrollPx+300,150); return;
+    }
+  }
   const info = [
     `<b>KEY</b>`,
     `key: <span style="color:#7cf">${e.key}</span>`,
@@ -792,7 +818,7 @@ window.addEventListener("keydown", e => {
   ];
   console.log("[KeyDebug]", { key: e.key, code: e.code, keyCode: e.keyCode });
   showKeyDebug(info);
-});
+}, true);
 
 // Gamepad API (para mandos que NO se presentan como teclado)
 window.addEventListener("gamepadconnected", e => {

@@ -32,14 +32,21 @@ body{display:flex;flex-direction:column;overflow:hidden}
 }
 .conn-badge .dot{width:6px;height:6px;border-radius:50%;background:#333}
 .conn-badge .dot.live{background:var(--green);box-shadow:0 0 5px var(--green)}
-#clients-bar{display:flex;gap:6px;margin-left:8px;flex-wrap:wrap}
+#clients-bar{display:flex;gap:6px;margin-left:8px;flex-wrap:wrap;min-height:24px}
 .client-pill{
   padding:3px 9px;border-radius:12px;font-size:10px;font-weight:600;
   letter-spacing:.06em;text-transform:uppercase;background:var(--s2);color:var(--text2);
-  display:flex;align-items:center;gap:5px;position:relative;
+  display:flex;align-items:center;gap:5px;position:relative;transition:opacity .12s;
 }
-.client-pill.has-menu{cursor:pointer;user-select:none}
+.client-pill.has-menu{cursor:grab;user-select:none}
 .client-pill.has-menu:hover{background:var(--s3);color:var(--text)}
+.client-pill.dragging{opacity:.3}
+.client-pill.drag-before::before,.client-pill.drag-after::after{
+  content:"";position:absolute;top:2px;bottom:2px;width:2px;
+  background:var(--accent);border-radius:1px;
+}
+.client-pill.drag-before::before{left:-4px}
+.client-pill.drag-after::after{right:-4px}
 .cpill-chevron{font-size:8px;opacity:.5}
 .client-pill.has-menu:hover .cpill-chevron{opacity:1}
 /* ── Client dropdown menu ── */
@@ -64,15 +71,60 @@ body{display:flex;flex-direction:column;overflow:hidden}
 /* ── Layout ── */
 #workspace{
   flex:1;display:grid;overflow:hidden;
-  grid-template-columns:280px 1fr 300px;
+  grid-template-columns:var(--w-left,280px) 1fr var(--w-right,300px);
   grid-template-rows:1fr;
 }
 
 /* ── Panel base ── */
 .panel{
-  border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;
+  overflow-y:auto;display:flex;flex-direction:column;position:relative;
 }
-.panel:last-child{border-right:none;border-left:1px solid var(--border)}
+
+/* ── Resize zones (8px invisibles para agarrar y arrastrar) ── */
+#panel-left::after{
+  content:"";position:absolute;top:0;bottom:0;width:8px;z-index:5;
+  right:-4px;cursor:col-resize;transition:background .12s;
+}
+#panel-right::after{
+  content:"";position:absolute;top:0;bottom:0;width:8px;z-index:5;
+  left:-4px;cursor:col-resize;transition:background .12s;
+}
+#panel-left:hover::after,#panel-right:hover::after{background:rgba(255,255,255,.12)}
+.panel.resizing::after{background:var(--accent)!important}
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{
+  background:rgba(255,255,255,.12);border-radius:5px;
+  border:2px solid transparent;background-clip:content-box;
+}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2);background-clip:content-box;}
+
+/* ── Tooltips tipo Bootstrap ── */
+[data-tip]{position:relative}
+[data-tip]:hover::after{
+  content:attr(data-tip);position:absolute;top:calc(100% + 5px);left:50%;
+  transform:translateX(-50%);padding:5px 11px;border-radius:6px;
+  background:#1e1e24;color:#eef0f4;font-size:11px;font-weight:500;
+  white-space:nowrap;pointer-events:none;z-index:1000;
+  box-shadow:0 4px 14px rgba(0,0,0,.5);
+}
+[data-tip]:hover::before{
+  content:"";position:absolute;top:calc(100% - 3px);left:50%;
+  transform:translateX(-50%);
+  border:5px solid transparent;border-bottom-color:#1e1e24;
+  pointer-events:none;z-index:1000;
+}
+
+/* ── Clock items en topbar ── */
+.clk-date{color:var(--accent)}
+.clk-chrono{color:var(--green);cursor:pointer}
+.clk-timer{color:var(--red);cursor:pointer}
+
+/* ── Flash en clic de crono/timer ── */
+@keyframes clk-flash{0%{background:rgba(255,255,255,.15)}100%{background:transparent}}
+.clk-flash{animation:clk-flash .25s ease-out}
 .panel-head{
   padding:14px 16px 10px;border-bottom:1px solid var(--border);
   font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
@@ -112,7 +164,7 @@ select option{background:var(--s2)}
 /* ═══════════════════════════════════════════════════════
    LEFT PANEL – Script library + participants
 ═══════════════════════════════════════════════════════ */
-#panel-left{grid-column:1}
+#panel-left{grid-column:1;border-right:1px solid var(--border)}
 
 /* Scripts list */
 .script-item{
@@ -232,7 +284,7 @@ select option{background:var(--s2)}
 /* ═══════════════════════════════════════════════════════
    RIGHT PANEL – Transport + clock + preview
 ═══════════════════════════════════════════════════════ */
-#panel-right{grid-column:3}
+#panel-right{grid-column:3;border-left:1px solid var(--border)}
 
 /* Transport */
 .transport-grid{
@@ -334,6 +386,26 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 
 /* ── Section divider ── */
 .sect{padding:10px 14px 4px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--border)}
+
+/* ── Key bindings ── */
+.kb-row{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.kb-keys{display:flex;gap:4px;flex-shrink:0}
+.kb-key-wrap{position:relative}
+.kb-key-input{
+  width:100px;padding:6px 18px 6px 6px;border-radius:6px;border:1.5px solid var(--border);
+  background:var(--s2);color:var(--accent);font-size:12px;font-weight:700;text-align:center;
+  font-family:inherit;cursor:pointer;outline:none;
+}
+.kb-key-input:focus{border-color:var(--accent)}
+.kb-key-input::placeholder{color:var(--muted);font-weight:400;font-size:10px}
+.kb-clear{
+  position:absolute;right:2px;top:50%;transform:translateY(-50%);
+  width:14px;height:14px;border-radius:3px;background:transparent;border:none;
+  color:var(--muted);font-size:8px;cursor:pointer;display:flex;
+  align-items:center;justify-content:center;line-height:1;padding:0;
+}
+.kb-clear:hover{color:var(--red);background:rgba(251,113,133,.1)}
+.kb-action{flex:1;min-width:0;font-size:11px;padding:6px 8px}
 
 
 /* ── Right panel tabs ── */
@@ -804,7 +876,14 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
             <span class="toggle-label">Mostrar IP del servidor en HUD</span>
             <button class="toggle" id="cfg-show-ip" onclick="onCfgShowIP()"></button>
           </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Mostrar teclas en teleprónter</span>
+            <button class="toggle on" id="cfg-show-key-debug" onclick="onCfgShowKeyDebug()"></button>
+          </div>
         </div>
+
+        <div class="sect" style="border-top:none;padding-top:14px;margin-bottom:8px">Teclas rápidas</div>
+        <div id="key-bindings-container" style="padding:0 14px 4px"></div>
 
         <!-- Guardar / restablecer -->
         <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -837,6 +916,7 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
     </div><!-- /rtab-network -->
 
   </div>
+
 </div>
 
 <!-- Client command menu -->
@@ -924,7 +1004,22 @@ let stopAtBlockEnd = false;
 let noteSize       = 42; // percent relative to fontSize
 let lineSpacing    = 0.8;
 let showSpeakerNames = true;
+let showKeyDebug = true;
 let emojiTarget  = null; // textarea activo para insertar emoji
+
+const KEY_ACTIONS = [
+  { id:"toggle_play",   label:"▶ Reproducir / Pausar" },
+  { id:"nudge_back",    label:"↑ Retroceder" },
+  { id:"nudge_forward", label:"↓ Avanzar" },
+  { id:"reset",         label:"⏮ Ir al inicio" },
+];
+const DEFAULT_KEY_BINDINGS = [
+  { action:"toggle_play",   keys:[{k:"b",s:false}] },
+  { action:"nudge_back",    keys:[{k:"PageUp",s:false}] },
+  { action:"nudge_forward", keys:[{k:"PageDown",s:false}] },
+  { action:"reset",         keys:[{k:"Escape",s:false},{k:"F5",s:true}] },
+];
+let keyBindings = JSON.parse(JSON.stringify(DEFAULT_KEY_BINDINGS));
 
 // clock
 let clockVisible = true;
@@ -1090,7 +1185,7 @@ function renderScriptsList() {
     return `
       <div class="script-item ${active?"active":""}" onclick="loadScript('${sc.id}')">
         <div style="flex:1;min-width:0">
-          <div class="script-name">${esc(sc.title)}</div>
+          <div class="script-name" title="${esc(sc.title)}">${esc(sc.title)}</div>
           <div class="script-date">${date}</div>
         </div>
         <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();exportScriptById('${sc.id}')" title="Exportar">📤</button>
@@ -2147,6 +2242,8 @@ function applyConfigFromMsg(cfg) {
   if (cfg.stopAtBlockEnd != null) { stopAtBlockEnd = cfg.stopAtBlockEnd; const el=document.getElementById("toggle-stop-block"); if(el) el.classList.toggle("on", stopAtBlockEnd); }
   if (cfg.lineSpacing    != null) { lineSpacing    = cfg.lineSpacing;    const el=document.getElementById("cfg-spacing-range"); if(el){ el.value=lineSpacing; document.getElementById("cfg-spacing-val").textContent=lineSpacing.toFixed(1)+" em"; } }
   if (cfg.showSpeakerNames != null) { showSpeakerNames = cfg.showSpeakerNames; const el=document.getElementById("cfg-show-speakers"); if(el) el.classList.toggle("on", showSpeakerNames); }
+  if (cfg.showKeyDebug != null) { showKeyDebug = cfg.showKeyDebug; const el=document.getElementById("cfg-show-key-debug"); if(el) el.classList.toggle("on", showKeyDebug); }
+  if (cfg.keyBindings != null) { keyBindings = cfg.keyBindings; renderKeyBindings(); }
   syncConfigTab();
 }
 
@@ -2187,6 +2284,152 @@ function onCfgShowSpeakers() {
   document.getElementById("cfg-show-speakers").classList.toggle("on", showSpeakerNames);
   sendConfig();
 }
+function onCfgShowKeyDebug() {
+  showKeyDebug = !showKeyDebug;
+  document.getElementById("cfg-show-key-debug").classList.toggle("on", showKeyDebug);
+  sendConfig();
+}
+
+// ── Key bindings ───────────────────────────────────────────────────────────
+function formatKBKey(k){
+  if(!k||!k.k) return "";
+  const m = (k.s?"Shift+":"")+(k.c?"Ctrl+":"")+(k.a?"Alt+":"");
+  const d = {Escape:"Esc",PageUp:"PgUp",PageDown:"PgDn",ArrowUp:"↑",ArrowDown:"↓",ArrowLeft:"←",ArrowRight:"→"};
+  return m+(d[k.k]||k.k);
+}
+function renderKeyBindings(){
+  const el=document.getElementById("key-bindings-container");
+  if(!el) return;
+  el.innerHTML=keyBindings.map((b,bi)=>`
+    <div class="kb-row">
+      <div class="kb-keys">
+        ${[0,1].map(si=>`
+          <div class="kb-key-wrap">
+            <input class="kb-key-input" value="${esc(formatKBKey(b.keys[si]))}" readonly placeholder="···"
+                   data-bi="${bi}" data-si="${si}"
+                   onfocus="this.dataset.capturing='1'" onkeydown="kbCapture(this,event)">
+            <button class="kb-clear" onclick="kbClearKey(${bi},${si})" ${b.keys[si]?"":"style=\"display:none\""}>×</button>
+          </div>
+        `).join("")}
+      </div>
+      <select class="kb-action" data-bi="${bi}" onchange="kbSetAction(this)">
+        ${KEY_ACTIONS.map(a=>`<option value="${a.id}" ${b.action===a.id?"selected":""}>${a.label}</option>`).join("")}
+      </select>
+    </div>
+  `).join("");
+}
+function kbCapture(input,e){
+  if(!input.dataset.capturing) return;
+  // F5/Shift+F5 — preventDefault en capture phase ya lo hizo, pero por si acaso:
+  e.preventDefault();
+  e.stopPropagation();
+  const bi=parseInt(input.dataset.bi), si=parseInt(input.dataset.si);
+  keyBindings[bi].keys[si]={k:e.key,s:e.shiftKey,c:e.ctrlKey,a:e.altKey};
+  input.value=formatKBKey(keyBindings[bi].keys[si]);
+  delete input.dataset.capturing;
+  input.blur();
+  sendConfig();
+}
+// Fase de captura (true) para interceptar F5/Shift+F5 antes del browser
+// También bloqueamos modificadores (Shift/Ctrl/Alt) para que no se capturen antes que la tecla real
+window.addEventListener("keydown", e => {
+  const cap = document.querySelector(".kb-key-input[data-capturing='1']");
+  const isMod = ["Shift","Control","Alt","Meta"].includes(e.key);
+
+  // F5 — prevenir recarga y capturar
+  if(e.key==="F5") {
+    e.preventDefault();
+    e.stopPropagation();
+    if(cap) { kbCapture(cap, e); }
+    return;
+  }
+
+  // Modificador mientras capturamos — bloquear que llegue al input
+  if(cap && isMod) {
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+}, true);
+function kbClearKey(bi,si){
+  keyBindings[bi].keys[si]=null;
+  sendConfig();
+  renderKeyBindings();
+}
+function kbSetAction(sel){
+  const bi=parseInt(sel.dataset.bi);
+  keyBindings[bi].action=sel.value;
+  sendConfig();
+}
+
+// ── Sidebar resize ──────────────────────────────────────────────────────────
+let _resizing = null;
+const RESIZE_HIT = 10; // px desde el borde para agarrar
+
+function onResizeStart(e){
+  const p = e.currentTarget;
+  const cx = e.clientX ?? e.touches?.[0]?.clientX;
+  if(cx == null) return;
+  const rect = p.getBoundingClientRect();
+  let side = null;
+  if(p.id === "panel-left") side = "right";
+  else if(p.id === "panel-right") side = "left";
+  if(!side) return;
+  const dist = side === "right" ? rect.right - cx : cx - rect.left;
+  if(dist > RESIZE_HIT) return;
+  _resizing = { panelId: p.id, side, startX: cx };
+  const ws = document.getElementById("workspace");
+  const cs = getComputedStyle(ws);
+  _resizing.leftW = parseFloat(cs.getPropertyValue("--w-left")) || 280;
+  _resizing.rightW = parseFloat(cs.getPropertyValue("--w-right")) || 300;
+  p.classList.add("resizing");
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
+  e.preventDefault();
+}
+
+function onResizeMove(e){
+  if(!_resizing) return;
+  const x = e.clientX ?? e.touches?.[0]?.clientX;
+  if(x == null) return;
+  const dx = x - _resizing.startX;
+  const ws = document.getElementById("workspace");
+  if(_resizing.panelId === "panel-left"){
+    const n = Math.max(180, Math.min(500, _resizing.leftW + dx));
+    ws.style.setProperty("--w-left", n + "px");
+    localStorage.setItem("tp_w_left", n);
+  } else {
+    const n = Math.max(200, Math.min(600, _resizing.rightW - dx));
+    ws.style.setProperty("--w-right", n + "px");
+    localStorage.setItem("tp_w_right", n);
+  }
+}
+
+function onResizeEnd(){
+  if(!_resizing) return;
+  const p = document.getElementById(_resizing.panelId);
+  if(p) p.classList.remove("resizing");
+  _resizing = null;
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+}
+
+document.getElementById("panel-left")?.addEventListener("mousedown", onResizeStart);
+document.getElementById("panel-right")?.addEventListener("mousedown", onResizeStart);
+document.getElementById("panel-left")?.addEventListener("touchstart", onResizeStart, {passive:false});
+document.getElementById("panel-right")?.addEventListener("touchstart", onResizeStart, {passive:false});
+window.addEventListener("mousemove", onResizeMove);
+window.addEventListener("mouseup", onResizeEnd);
+window.addEventListener("touchmove", onResizeMove, {passive:false});
+window.addEventListener("touchend", onResizeEnd);
+
+{
+  const ws = document.getElementById("workspace");
+  const l = localStorage.getItem("tp_w_left");
+  const r = localStorage.getItem("tp_w_right");
+  if(l) ws.style.setProperty("--w-left", l + "px");
+  if(r) ws.style.setProperty("--w-right", r + "px");
+}
 function saveConfig()  { send({ type:"save_config" }); }
 function resetConfig() { send({ type:"reset_config" }); }
 function onCfgWidth(v) {
@@ -2204,7 +2447,7 @@ function onCfgSpeed(v) {
   cfgSpT = setTimeout(() => send({type:"set_speed", value:speed}), 80);
 }
 function sendConfig() {
-  send({ type:"set_config", config:{ speakerSize, noteSize, contentWidth, hideCursor, showServerIP, stopAtBlockEnd, lineSpacing, showSpeakerNames } });
+  send({ type:"set_config", config:{ speakerSize, noteSize, contentWidth, hideCursor, showServerIP, stopAtBlockEnd, lineSpacing, showSpeakerNames, showKeyDebug, keyBindings } });
 }
 
 function switchRTab(name, btn) {
@@ -2212,7 +2455,7 @@ function switchRTab(name, btn) {
   document.querySelectorAll(".rpanel-section").forEach(s => s.classList.remove("active"));
   btn.classList.add("active");
   document.getElementById("rtab-" + name).classList.add("active");
-  if (name === "config") syncConfigTab();
+  if (name === "config") { syncConfigTab(); renderKeyBindings(); }
   if (name === "network") renderNetTab();
 }
 
@@ -2325,6 +2568,7 @@ function toggleClockStudio() {
   const tc = document.getElementById("topbar-clock");
   const sep = document.getElementById("topbar-clock-sep");
   if (!showInStudio) { if(tc) tc.style.display="none"; if(sep) sep.style.display="none"; }
+  sendClockUpdate();
 }
 
 function onClockItems() {
@@ -2346,7 +2590,7 @@ function applyTimerPreset(minutes) {
 }
 
 function sendClockUpdate(partial) {
-  send({ type:"clock_update", clock:{ visible:clockVisible, items:clockItems, timerSec, ...partial } });
+  send({ type:"clock_update", clock:{ visible:clockVisible, showInStudio, items:clockItems, timerSec, ...partial } });
 }
 
 // Chrono
@@ -2442,22 +2686,26 @@ setInterval(() => {
   const tc  = document.getElementById("topbar-clock");
   const sep = document.getElementById("topbar-clock-sep");
   if (tc) {
-    const parts = [];
+    const items = [];
     if (showInStudio && clockItems.length) {
       const now2 = new Date();
-      if (clockItems.includes("date"))   parts.push(`📅 ${now2.toLocaleDateString("es-ES",{day:"numeric",month:"short"})}`);
-      if (clockItems.includes("clock"))  parts.push(`🕐 ${pad(now2.getHours())}:${pad(now2.getMinutes())}`);
-      if (clockItems.includes("chrono")) parts.push(`⏱ ${chronoValue()}${!chronoRunning&&chronoElapsed>0?" ⏸":""}`);
+      if (clockItems.includes("date"))   items.push({k:"date",  h:`📅 ${now2.toLocaleDateString("es-ES",{day:"numeric",month:"short"})}`,  t:"Fecha"});
+      if (clockItems.includes("clock"))  items.push({k:"clock", h:`🕐 ${pad(now2.getHours())}:${pad(now2.getMinutes())}`, t:"Reloj"});
+      if (clockItems.includes("chrono")) items.push({k:"chrono",h:`⏱ ${chronoValue()}${!chronoRunning&&chronoElapsed>0?" ⏸":""}`, t:"Cronómetro — clic: iniciar/pausar · clic der: resetear"});
       if (clockItems.includes("timer")) {
         const el2 = timerStart ? Date.now()-timerStart : timerElapsed;
         const rem = Math.max(timerSec-Math.floor(el2/1000),0);
-        parts.push(`⏳ ${formatTime(rem)}${!timerRunning&&timerElapsed>0?" ⏸":""}`);
+        items.push({k:"timer", h:`⏳ ${formatTime(rem)}${!timerRunning&&timerElapsed>0?" ⏸":""}`, t:"Temporizador — clic: iniciar/pausar · clic der: resetear"});
       }
     }
-    const show = parts.length > 0;
+    const show = items.length > 0;
     tc.style.display  = show ? "flex" : "none";
     if (sep) sep.style.display = show ? "block" : "none";
-    if (show) tc.innerHTML = parts.map(p => `<span>${p}</span>`).join("");
+    if (show) tc.innerHTML = items.map(p => {
+      const clickable = p.k==="chrono"||p.k==="timer";
+      const cls = clickable ? `clk-${p.k} flashable` : `clk-${p.k}`;
+      return `<span data-tip="${clickable?esc(p.t):''}" class="${cls}"${clickable?` data-clk="${p.k}"`:""}>${p.h}</span>`;
+    }).join("");
   }
 }, 500);
 
@@ -2536,17 +2784,98 @@ let _menuOutsideHandler = null;
 
 function renderClients(list) {
   const el = document.getElementById("clients-bar");
-  const icons = { teleprompter:"📺", studio:"🎛️", remote:"📱" };
+  const icons = { teleprompter:"📺", studio:"🎛️", remote:"📱", controller:"🎮" };
   el.innerHTML = (list||[]).map(c => {
     const hasMenu = c.clientId && (c.role === "teleprompter" || c.role === "remote");
-    if (hasMenu) {
-      return `<span class="client-pill has-menu" title="${esc(c.ip||c.role)}"
-        onclick="openClientMenu('${c.clientId}','${c.role}',this,event)">
-        ${icons[c.role]||"•"} ${esc(c.name||c.role)} <span class="cpill-chevron">▾</span>
-      </span>`;
-    }
-    return `<span class="client-pill" title="${esc(c.ip||c.role)}">${icons[c.role]||"•"} ${esc(c.name||c.role)}</span>`;
+    const tag = hasMenu
+      ? `<span class="client-pill has-menu" draggable="true" data-client-id="${c.clientId}"
+           title="${esc(c.ip||c.role)}"
+           onclick="openClientMenu('${c.clientId}','${c.role}',this,event)">
+           ${icons[c.role]||"•"} ${esc(c.name||c.role)} <span class="cpill-chevron">▾</span>
+         </span>`
+      : `<span class="client-pill" title="${esc(c.ip||c.role)}">${icons[c.role]||"•"} ${esc(c.name||c.role)}</span>`;
+    return tag;
   }).join("");
+  // Reaplicar orden guardado tras render
+  applyClientOrder(el);
+  initClientDrag(el);
+}
+
+// ── Drag & drop clients ─────────────────────────────────────────────────────
+let _dragCid = null;
+
+function initClientDrag(container) {
+  container.querySelectorAll(".client-pill.has-menu").forEach(p => {
+    p.addEventListener("dragstart", onCDragStart);
+    p.addEventListener("dragover",  onCDragOver);
+    p.addEventListener("dragleave", onCDragLeave);
+    p.addEventListener("drop",      onCDrop);
+    p.addEventListener("dragend",   onCDragEnd);
+  });
+}
+
+function onCDragStart(e) {
+  _dragCid = e.currentTarget.dataset.clientId;
+  e.dataTransfer.effectAllowed = "move";
+  e.currentTarget.classList.add("dragging");
+}
+
+function onCDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  const t = e.currentTarget;
+  if(t.dataset.clientId === _dragCid) return;
+  const rect = t.getBoundingClientRect();
+  t.classList.toggle("drag-after", e.clientX > rect.left + rect.width / 2);
+  t.classList.toggle("drag-before", e.clientX <= rect.left + rect.width / 2);
+}
+
+function onCDragLeave(e) {
+  e.currentTarget.classList.remove("drag-before","drag-after");
+}
+
+function onCDrop(e) {
+  e.preventDefault();
+  const t = e.currentTarget;
+  t.classList.remove("drag-before","drag-after");
+  if(!_dragCid || t.dataset.clientId === _dragCid) return;
+  const src = t.parentElement.querySelector(`[data-client-id="${_dragCid}"]`);
+  if(!src) return;
+  const after = t.classList.contains("drag-after");
+  if(after) t.after(src);
+  else      t.before(src);
+  saveClientOrder(t.parentElement);
+  _dragCid = null;
+}
+
+function onCDragEnd(e) {
+  e.currentTarget.classList.remove("dragging");
+  e.currentTarget.parentElement.querySelectorAll(".client-pill").forEach(p =>
+    p.classList.remove("drag-before","drag-after"));
+  _dragCid = null;
+}
+
+function saveClientOrder(container) {
+  const ids = Array.from(container.querySelectorAll(".client-pill[data-client-id]"))
+    .map(p => p.dataset.clientId);
+  localStorage.setItem("tp_client_order", JSON.stringify(ids));
+}
+
+function applyClientOrder(container) {
+  try {
+    const saved = JSON.parse(localStorage.getItem("tp_client_order"));
+    if(!Array.isArray(saved) || !saved.length) return;
+    const pills = Array.from(container.children);
+    const ordered = [...pills].sort((a,b) => {
+      const ai = a.dataset.clientId ? saved.indexOf(a.dataset.clientId) : -1;
+      const bi = b.dataset.clientId ? saved.indexOf(b.dataset.clientId) : -1;
+      if(ai===-1 && bi===-1) return 0;
+      if(ai===-1) return 1;
+      if(bi===-1) return -1;
+      return ai - bi;
+    });
+    ordered.forEach(p => container.appendChild(p));
+  } catch(e) {}
 }
 
 function buildClientMenuContent(clientId, role) {
@@ -2557,6 +2886,7 @@ function buildClientMenuContent(clientId, role) {
     <div class="cmenu-header">${isTp ? "📺 Teleprónter" : "📱 Mando"}</div>
     <button class="cmenu-item" onclick="clientCmd('${clientId}','reload')">↺ &nbsp;Recargar página</button>
     <button class="cmenu-item" onclick="clientCmd('${clientId}','beep')">🔔 &nbsp;Pitido</button>
+    <button class="cmenu-item" onclick="clientCmd('${clientId}','attention')">⚠️ &nbsp;Llamar atención</button>
     ${isTp ? `<div class="cmenu-sep"></div>
     <button class="cmenu-item" onclick="clientCmd('${clientId}','flip_h')">↔ &nbsp;Voltear horizontal ${st.flipH?"✓":""}</button>
     <button class="cmenu-item" onclick="clientCmd('${clientId}','flip_v')">↕ &nbsp;Voltear vertical ${st.flipV?"✓":""}</button>
@@ -2612,6 +2942,23 @@ function clientCmd(clientId, cmd) {
 function esc(s) {
   return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
+
+// ── Topbar clock: clic = iniciar/pausar, clic der = reset ──
+document.addEventListener("click", e => {
+  const s = e.target.closest("#topbar-clock [data-clk]");
+  if(!s) return;
+  s.classList.add("clk-flash"); setTimeout(()=>s.classList.remove("clk-flash"),300);
+  if(s.dataset.clk==="chrono") toggleChrono();
+  if(s.dataset.clk==="timer")  toggleTimer();
+});
+document.addEventListener("contextmenu", e => {
+  const s = e.target.closest("#topbar-clock [data-clk]");
+  if(!s) return;
+  e.preventDefault();
+  s.classList.add("clk-flash"); setTimeout(()=>s.classList.remove("clk-flash"),300);
+  if(s.dataset.clk==="chrono") resetChrono();
+  if(s.dataset.clk==="timer")  resetTimer();
+});
 
 // ── Update ────────────────────────────────────────────
 async function checkUpdate() {
