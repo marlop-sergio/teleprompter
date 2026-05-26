@@ -39,6 +39,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
   display:flex;align-items:center;gap:5px;position:relative;transition:opacity .12s;
 }
 .client-pill.has-menu{cursor:grab;user-select:none}
+.client-pill.has-menu > *{pointer-events:none}
 .client-pill.has-menu:hover{background:var(--s3);color:var(--text)}
 .client-pill.dragging{opacity:.3}
 .client-pill.drag-before::before,.client-pill.drag-after::after{
@@ -119,6 +120,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 
 /* ── Clock items en topbar ── */
 .clk-date{color:var(--accent)}
+.clk-clock{color:var(--accent)}
 .clk-chrono{color:var(--green);cursor:pointer}
 .clk-timer{color:var(--red);cursor:pointer}
 
@@ -274,12 +276,19 @@ select option{background:var(--s2)}
 }
 .line-del:hover{background:rgba(251,113,133,.1);color:var(--red);border-color:rgba(251,113,133,.2)}
 
+#editor-bottom-btns{display:flex;gap:8px}
 #add-block-btn{
-  width:100%;padding:14px;background:transparent;border:2px dashed var(--border);
+  flex:1;padding:14px;background:transparent;border:2px dashed var(--border);
   border-radius:var(--radius);color:var(--muted);font-family:'Figtree',system-ui,sans-serif;
   font-size:13px;cursor:pointer;transition:all .15s;
 }
 #add-block-btn:hover{border-color:var(--accent);color:var(--accent)}
+#paste-block-btn{
+  padding:14px 18px;background:transparent;border:2px dashed var(--border);
+  border-radius:var(--radius);color:var(--muted);font-family:'Figtree',system-ui,sans-serif;
+  font-size:13px;cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+#paste-block-btn:hover{border-color:var(--green);color:var(--green)}
 
 /* ═══════════════════════════════════════════════════════
    RIGHT PANEL – Transport + clock + preview
@@ -331,9 +340,17 @@ input[type=range]::-moz-range-thumb{
   background:transparent;border:1px solid var(--border);color:var(--text2);
   font-family:'Figtree',system-ui,sans-serif;font-size:12px;cursor:pointer;
   margin-bottom:5px;transition:all .12s;display:flex;align-items:center;gap:8px;
+  position:relative;
 }
 .block-nav-btn:hover{background:var(--s2);color:var(--text);border-color:var(--border2)}
 .block-nav-btn.active{background:rgba(94,234,212,.1);border-color:var(--green);color:var(--green)}
+.block-nav-btn.bndrag-over-top::before,.block-nav-btn.bndrag-over-bottom::after{
+  content:"";position:absolute;left:4px;right:4px;height:2px;background:var(--accent);border-radius:1px;
+}
+.block-nav-btn.bndrag-over-top::before{top:-3px}
+.block-nav-btn.bndrag-over-bottom::after{bottom:-3px}
+.block-nav-btn.bndragging{opacity:.35}
+.bn-drag-handle{font-size:11px;color:var(--muted);cursor:grab;flex-shrink:0;pointer-events:none;opacity:.5}
 .block-nav-num{
   width:20px;height:20px;border-radius:4px;background:var(--s3);
   display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;
@@ -422,6 +439,14 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 .rpanel-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 .rpanel-section{display:none}
 .rpanel-section.active{display:block}
+
+/* ── Tab Teleprónter preview ── */
+#tele-preview{overflow-y:auto;max-height:calc(100vh - 340px);border:1px solid var(--border);border-radius:var(--radius)}
+.tele-blk-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:5px 10px;background:var(--s2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1}
+.tele-line{padding:5px 10px 5px 12px;font-size:12px;line-height:1.4;cursor:pointer;border-bottom:1px solid var(--border);border-left:3px solid transparent;transition:background .1s;color:var(--text2)}
+.tele-line:hover{background:var(--s2)}
+.tele-line.tele-active{background:rgba(124,159,255,.12);color:var(--accent);font-weight:600}
+.tele-line.tele-note{color:var(--orange);font-style:italic}
 
 /* ── Config sliders ── */
 .config-section{padding:14px}
@@ -585,7 +610,7 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
         <button class="btn btn-ghost btn-sm" onclick="toggleNewScriptForm()">+ Nuevo</button>
       </div>
     </div>
-    <input type="file" id="import-file-input" accept=".json" style="display:none"
+    <input type="file" id="import-file-input" accept=".json,.txt,.text,.pdf" style="display:none"
            onchange="onImportFile(this)">
 
     <div id="new-script-form">
@@ -625,7 +650,10 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
 
     <div id="editor-area">
       <div id="blocks-container"></div>
-      <button id="add-block-btn" onclick="addBlock()">+ Añadir bloque</button>
+      <div id="editor-bottom-btns">
+        <button id="add-block-btn" onclick="addBlock()">+ Añadir bloque</button>
+        <button id="paste-block-btn" onclick="pasteBlock()" title="Pegar bloque desde portapapeles">📋 Pegar bloque</button>
+      </div>
     </div>
 
   </div>
@@ -640,6 +668,7 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
       <button class="rpanel-tab" onclick="switchRTab('voice',this)">🎤 Voz</button>
       <button class="rpanel-tab" onclick="switchRTab('config',this)">⚙ Config</button>
       <button class="rpanel-tab" onclick="switchRTab('network',this)">🌐 Red</button>
+      <button class="rpanel-tab" onclick="switchRTab('tele',this)">📺 Tele</button>
     </div>
 
     <!-- SECTION: Transport -->
@@ -692,6 +721,14 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
         <input type="range" id="font-range" min="24" max="110" value="56"
                oninput="onFont(this.value)">
       </div>
+    </div>
+
+    <!-- Tiempo restante -->
+    <div id="transport-remaining" style="display:none;margin:0 14px 10px;padding:8px 12px;
+      background:var(--s2);border-radius:8px;
+      font-size:12px;color:var(--text2);align-items:center;justify-content:space-between">
+      <span>⏱ Tiempo restante</span>
+      <span id="remaining-val" style="font-variant-numeric:tabular-nums;font-weight:600;color:var(--accent)">—</span>
     </div>
 
     <!-- Block navigator -->
@@ -859,6 +896,16 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
         </div>
 
         <div class="config-row">
+          <div class="config-header">
+            <span class="config-label">Fade de bordes</span>
+            <span class="config-val" id="cfg-fade-val">Medio</span>
+          </div>
+          <input type="range" id="cfg-fade-range" min="0" max="3" step="1" value="2"
+                 oninput="onCfgFade(this.value)">
+          <div class="config-hint">Fundido superior e inferior del texto en el teleprónter.</div>
+        </div>
+
+        <div class="config-row">
           <div class="config-header"><span class="config-label">Pantalla Teleprónter</span></div>
           <div class="toggle-row">
             <span class="toggle-label">Mostrar nombre del locutor</span>
@@ -914,6 +961,23 @@ body.reconnecting{animation:reconnect-pulse 2.5s ease-in-out infinite}
         <div id="net-tab-qrs" style="display:flex;flex-direction:column;gap:16px;margin-top:4px"></div>
       </div>
     </div><!-- /rtab-network -->
+
+    <!-- TAB: Teleprónter -->
+    <div class="rpanel-section" id="rtab-tele">
+      <div style="padding:12px 14px">
+        <!-- controles de posición -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+          <button class="btn btn-ghost btn-sm" id="tele-ctrl-prev" onclick="send({type:'control',action:'jump_prev_block'})">⏮ Bloque ant.</button>
+          <button class="btn btn-ghost btn-sm" id="tele-ctrl-next" onclick="send({type:'control',action:'jump_next_block'})">Bloque sig. ⏭</button>
+          <button class="btn btn-ghost btn-sm" id="tele-ctrl-up"   onclick="if(!playing)nudge(-200)">↑ Retroceder</button>
+          <button class="btn btn-ghost btn-sm" id="tele-ctrl-down" onclick="if(!playing)nudge(300)">↓ Avanzar</button>
+        </div>
+        <div id="tele-pause-note" style="font-size:11px;color:var(--orange);text-align:center;margin-bottom:8px;display:none">
+          ⏸ Scroll solo disponible en pausa
+        </div>
+        <div id="tele-preview"></div>
+      </div>
+    </div><!-- /rtab-tele -->
 
   </div>
 
@@ -994,6 +1058,8 @@ let speed      = 45;
 let fontSize   = 56;
 let scrollPx   = 0;
 let activeBlockIdx = 0;
+let _teleActiveBlock = 0;
+let _teleActiveLine  = 0;
 let dirty      = false;
 let speakerSize  = 22; // percent relative to fontSize
 let contentWidth = 80;
@@ -1005,6 +1071,7 @@ let noteSize       = 42; // percent relative to fontSize
 let lineSpacing    = 0.8;
 let showSpeakerNames = true;
 let showKeyDebug = true;
+let fadeSize     = 2;
 let emojiTarget  = null; // textarea activo para insertar emoji
 
 const KEY_ACTIONS = [
@@ -1150,6 +1217,9 @@ function connectWS() {
         if (lEl) { lEl.classList.add("line-active"); lEl.scrollIntoView({block:"nearest",behavior:"smooth"}); }
         updateActiveBlock(msg.blockIndex);
       }
+      _teleActiveBlock = msg.blockIndex;
+      _teleActiveLine  = msg.lineIndex;
+      if (document.getElementById("rtab-tele")?.classList.contains("active")) renderTelePreview();
       break;
     }
     case "timer_start":   timerStart = msg.at; timerElapsed = 0; timerSec = msg.sec; timerRunning = true; updateTimerBtn(); break;
@@ -1408,6 +1478,7 @@ function renderEditor() {
   renderBlocks();
   renderBlockNav();
   updateTitleBar();
+  if (document.getElementById("rtab-tele")?.classList.contains("active")) renderTelePreview();
 }
 
 function updateTitleBar() {
@@ -1481,6 +1552,7 @@ function renderBlockHTML(block, bi) {
                  title="Tiempo orientativo" onchange="onBlockTime(${bi},this.value)">
         </div>
         <button class="btn btn-ghost btn-sm" onclick="addLine(${bi})" title="Añadir línea">+ Línea</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="copyBlock(${bi})" title="Copiar bloque al portapapeles">📋</button>
         <button class="btn btn-ghost btn-sm btn-icon" onclick="duplicateBlock(${bi})" title="Duplicar bloque">⧉</button>
         <button class="btn btn-red btn-sm btn-icon" onclick="removeBlock(${bi})" title="Eliminar bloque">🗑</button>
       </div>
@@ -1662,6 +1734,34 @@ function duplicateBlock(bi) {
   renderBlocks();
   renderBlockNav();
   markDirty();
+}
+
+async function copyBlock(bi) {
+  try {
+    await navigator.clipboard.writeText(JSON.stringify({ _tpBlock: script.blocks[bi] }));
+    toast("Bloque copiado al portapapeles");
+  } catch {
+    toast("No se pudo acceder al portapapeles");
+  }
+}
+
+async function pasteBlock() {
+  if (!script) { toast("Crea o carga un guion primero"); return; }
+  try {
+    const text = await navigator.clipboard.readText();
+    const data = JSON.parse(text);
+    if (!data?._tpBlock) { toast("El portapapeles no contiene un bloque válido"); return; }
+    snapshot();
+    const copy = JSON.parse(JSON.stringify(data._tpBlock));
+    const insertAt = (activeBlockIdx >= 0 ? activeBlockIdx : script.blocks.length - 1) + 1;
+    script.blocks.splice(insertAt, 0, copy);
+    renderBlocks();
+    renderBlockNav();
+    markDirty();
+    toast("Bloque pegado");
+  } catch {
+    toast("No se pudo leer el portapapeles");
+  }
 }
 
 // ── Speaker picker ──────────────────────────────────────────────────────────
@@ -1980,18 +2080,93 @@ function renderBlockNav() {
   const el = document.getElementById("block-nav");
   if (!script?.blocks?.length) { el.innerHTML = ""; return; }
   el.innerHTML = script.blocks.map((b, i) =>
-    `<button class="block-nav-btn ${i===activeBlockIdx?"active":""}" onclick="jumpBlock(${i})">
+    `<button class="block-nav-btn ${i===activeBlockIdx?"active":""}" draggable="true"
+             data-bn="${i}" onclick="jumpBlock(${i})">
+       <span class="bn-drag-handle">⠿</span>
        <div class="block-nav-num">${i+1}</div>
        <span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.title||`Bloque ${i+1}`)}</span>
        ${b.time ? `<span class="block-nav-time">${esc(b.time)}</span>` : ""}
      </button>`
   ).join("");
+  initBlockNavDrag(el);
 }
 
 function jumpBlock(idx) {
   activeBlockIdx = idx;
   renderBlockNav();
   send({ type:"jump_block", index: idx });
+}
+
+// ── Drag & drop block-nav ────────────────────────────────────────────────────
+let _bnDragIdx  = -1;
+let _bnDragAfter = false;
+
+function initBlockNavDrag(container) {
+  container.querySelectorAll(".block-nav-btn[data-bn]").forEach(btn => {
+    btn.addEventListener("dragstart", onBNDragStart);
+    btn.addEventListener("dragover",  onBNDragOver);
+    btn.addEventListener("dragleave", onBNDragLeave);
+    btn.addEventListener("drop",      onBNDrop);
+    btn.addEventListener("dragend",   onBNDragEnd);
+  });
+}
+
+function onBNDragStart(e) {
+  _bnDragIdx = parseInt(e.currentTarget.dataset.bn);
+  e.dataTransfer.effectAllowed = "move";
+  e.currentTarget.classList.add("bndragging");
+}
+
+function onBNDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  const t = e.currentTarget;
+  if (parseInt(t.dataset.bn) === _bnDragIdx) return;
+  const rect = t.getBoundingClientRect();
+  _bnDragAfter = e.clientY > rect.top + rect.height / 2;
+  t.classList.toggle("bndrag-over-bottom", _bnDragAfter);
+  t.classList.toggle("bndrag-over-top",   !_bnDragAfter);
+}
+
+function onBNDragLeave(e) {
+  if (e.currentTarget.contains(e.relatedTarget)) return;
+  e.currentTarget.classList.remove("bndrag-over-top","bndrag-over-bottom");
+}
+
+function onBNDrop(e) {
+  e.preventDefault();
+  const t = e.currentTarget;
+  t.classList.remove("bndrag-over-top","bndrag-over-bottom");
+  const srcIdx = _bnDragIdx;
+  const dstIdx = parseInt(t.dataset.bn);
+  if (srcIdx < 0 || srcIdx === dstIdx) return;
+  snapshot();
+  const prevActive = activeBlockIdx;
+  const [moved] = script.blocks.splice(srcIdx, 1);
+  // misma fórmula que onLineDrop para calcular el destino tras el splice
+  let dest;
+  if (_bnDragAfter) dest = dstIdx < srcIdx ? dstIdx + 1 : dstIdx;
+  else              dest = dstIdx > srcIdx ? dstIdx - 1 : dstIdx;
+  dest = Math.max(0, Math.min(dest, script.blocks.length));
+  script.blocks.splice(dest, 0, moved);
+  // ajustar el índice activo
+  if (prevActive === srcIdx) activeBlockIdx = dest;
+  else {
+    let a = prevActive;
+    if (a > srcIdx) a--;
+    if (a >= dest) a++;
+    activeBlockIdx = Math.max(0, Math.min(a, script.blocks.length - 1));
+  }
+  renderBlocks();
+  renderBlockNav();
+  markDirty();
+}
+
+function onBNDragEnd(e) {
+  e.currentTarget.classList.remove("bndragging");
+  document.querySelectorAll(".block-nav-btn").forEach(b =>
+    b.classList.remove("bndrag-over-top","bndrag-over-bottom"));
+  _bnDragIdx = -1;
 }
 
 // ══════════════════════════════════════════════════════
@@ -2100,30 +2275,82 @@ function importScript() {
 function onImportFile(input) {
   const file = input.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (!Array.isArray(data.blocks)) {
-        toast("Formato no válido — no parece un guión exportado"); return;
-      }
-      let title = data.title || "Sin título";
-      if (scripts.some(s => s.title === title)) {
-        let n = 1;
-        while (scripts.some(s => s.title === `${title} (${n})`)) n++;
-        title = `${title} (${n})`;
-      }
-      script = { ...data, id: null, title };
-      activeScriptId = null;
-      renderEditor();
-      markDirty();
-      toast(`"${script.title || "Sin título"}" importado ✓`);
-    } catch {
-      toast("Error al leer el fichero JSON");
+  const ext = file.name.split(".").pop().toLowerCase();
+  if (ext === "json") {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!Array.isArray(data.blocks)) { toast("Formato no válido — no parece un guión exportado"); return; }
+        importScriptObject(data);
+      } catch { toast("Error al leer el fichero JSON"); }
+      input.value = "";
+    };
+    reader.readAsText(file, "utf-8");
+  } else if (ext === "txt" || ext === "text") {
+    const reader = new FileReader();
+    reader.onload = e => { importPlainText(e.target.result, file.name.replace(/\.[^.]+$/, "")); input.value = ""; };
+    reader.readAsText(file, "utf-8");
+  } else if (ext === "pdf") {
+    importPDF(file).then(() => { input.value = ""; }).catch(err => { toast("Error al leer PDF: " + err.message); input.value = ""; });
+  } else {
+    toast("Formato no reconocido. Usa .json, .txt o .pdf"); input.value = "";
+  }
+}
+
+function importScriptObject(data) {
+  let title = data.title || "Sin título";
+  if (scripts.some(s => s.title === title)) {
+    let n = 1;
+    while (scripts.some(s => s.title === `${title} (${n})`)) n++;
+    title = `${title} (${n})`;
+  }
+  script = { ...data, id: null, title };
+  activeScriptId = null;
+  renderEditor();
+  markDirty();
+  toast(`"${script.title || "Sin título"}" importado ✓`);
+}
+
+function importPlainText(text, defaultTitle) {
+  // Párrafos separados por línea en blanco → bloques; cada línea → línea del guion
+  const rawBlocks = text.replace(/\r\n/g, "\n").split(/\n{2,}/);
+  const pid = script?.participants?.[0]?.id || "p0";
+  const blocks = rawBlocks
+    .map(b => b.trim())
+    .filter(Boolean)
+    .map((b, i) => {
+      const lines = b.split("\n").map(l => l.trim()).filter(Boolean);
+      const title = lines.length > 1 && lines[0].length < 60 ? lines.shift() : `Bloque ${i + 1}`;
+      return { title, time: "", lines: lines.map(t => ({ participantId: pid, text: t, type: "line" })) };
+    });
+  if (!blocks.length) { toast("El fichero está vacío"); return; }
+  importScriptObject({
+    title: defaultTitle || "Texto importado",
+    participants: script?.participants || [{ id: "p0", name: "Locutor", colorIdx: 0 }],
+    blocks,
+  });
+}
+
+async function importPDF(file) {
+  toast("Procesando PDF…");
+  const formData = new FormData();
+  formData.append("file", file);
+  try {
+    const res = await fetch("/api/import-pdf", { method: "POST", body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
     }
-    input.value = "";
-  };
-  reader.readAsText(file, "utf-8");
+    const { text } = await res.json();
+    importPlainText(text, file.name.replace(/\.pdf$/i, ""));
+  } catch (e) {
+    if (e.message.includes("pdf-parse")) {
+      toast("PDF: instala pdf-parse primero → pnpm add pdf-parse");
+    } else {
+      throw e;
+    }
+  }
 }
 
 function saveScript() {
@@ -2158,6 +2385,13 @@ function syncPlayUI() {
   btn.classList.toggle("playing", playing);
   ico.textContent = playing ? "⏸" : "▶";
   lbl.textContent = playing ? "Pausar" : "Reproducir";
+  // Actualizar controles del tab teleprónter
+  const note = document.getElementById("tele-pause-note");
+  if (note) note.style.display = playing ? "block" : "none";
+  ["tele-ctrl-up","tele-ctrl-down"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.disabled = playing; el.style.opacity = playing ? ".4" : "1"; }
+  });
 }
 
 function toggleFastForward() {
@@ -2222,6 +2456,8 @@ function syncConfigTab() {
   document.getElementById("cfg-spacing-range").value      = lineSpacing;
   const spEl = document.getElementById("cfg-show-speakers");
   if (spEl) spEl.classList.toggle("on", showSpeakerNames);
+  const frEl = document.getElementById("cfg-fade-range");
+  if (frEl) { frEl.value = fadeSize; document.getElementById("cfg-fade-val").textContent = FADE_LABELS[fadeSize] ?? "Medio"; }
   updateConfigPreview();
 }
 
@@ -2244,6 +2480,7 @@ function applyConfigFromMsg(cfg) {
   if (cfg.showSpeakerNames != null) { showSpeakerNames = cfg.showSpeakerNames; const el=document.getElementById("cfg-show-speakers"); if(el) el.classList.toggle("on", showSpeakerNames); }
   if (cfg.showKeyDebug != null) { showKeyDebug = cfg.showKeyDebug; const el=document.getElementById("cfg-show-key-debug"); if(el) el.classList.toggle("on", showKeyDebug); }
   if (cfg.keyBindings != null) { keyBindings = cfg.keyBindings; renderKeyBindings(); }
+  if (cfg.fadeSize    != null) fadeSize = cfg.fadeSize;
   syncConfigTab();
 }
 
@@ -2278,6 +2515,12 @@ function onCfgSpacing(v) {
   document.getElementById("cfg-spacing-val").textContent = lineSpacing.toFixed(1) + " em";
   clearTimeout(cfgSpT);
   cfgSpT = setTimeout(() => sendConfig(), 80);
+}
+const FADE_LABELS = ["Off","Pequeño","Medio","Grande"];
+function onCfgFade(v) {
+  fadeSize = parseInt(v);
+  document.getElementById("cfg-fade-val").textContent = FADE_LABELS[fadeSize] ?? "Medio";
+  sendConfig();
 }
 function onCfgShowSpeakers() {
   showSpeakerNames = !showSpeakerNames;
@@ -2447,7 +2690,7 @@ function onCfgSpeed(v) {
   cfgSpT = setTimeout(() => send({type:"set_speed", value:speed}), 80);
 }
 function sendConfig() {
-  send({ type:"set_config", config:{ speakerSize, noteSize, contentWidth, hideCursor, showServerIP, stopAtBlockEnd, lineSpacing, showSpeakerNames, showKeyDebug, keyBindings } });
+  send({ type:"set_config", config:{ speakerSize, noteSize, contentWidth, hideCursor, showServerIP, stopAtBlockEnd, lineSpacing, showSpeakerNames, showKeyDebug, keyBindings, fadeSize } });
 }
 
 function switchRTab(name, btn) {
@@ -2457,6 +2700,7 @@ function switchRTab(name, btn) {
   document.getElementById("rtab-" + name).classList.add("active");
   if (name === "config") { syncConfigTab(); renderKeyBindings(); }
   if (name === "network") renderNetTab();
+  if (name === "tele") { renderTelePreview(); syncPlayUI(); }
 }
 
 async function renderNetTab() {
@@ -2647,23 +2891,8 @@ function chronoValue() {
 setInterval(() => {
   const el = document.getElementById("clock-display");
   const now = new Date();
-  const primary = clockItems[0] || "clock";
-  if (primary === "clock") {
-    el.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    el.classList.remove("warn");
-  } else if (primary === "chrono") {
-    el.textContent = chronoValue();
-    el.classList.remove("warn");
-  } else if (primary === "timer") {
-    if (timerStart) {
-      const rem = Math.max(timerSec - Math.floor((Date.now()-timerStart)/1000), 0);
-      el.textContent = formatTime(rem);
-      el.classList.toggle("warn", rem < 60);
-    } else {
-      el.textContent = formatTime(timerSec);
-      el.classList.remove("warn");
-    }
-  }
+  el.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  el.classList.remove("warn");
   // Displays individuales por sección
   const dd = document.getElementById("date-display");
   if (dd) {
@@ -2708,6 +2937,41 @@ setInterval(() => {
     }).join("");
   }
 }, 500);
+
+// ══════════════════════════════════════════════════════
+// TELEPRÓNTER PREVIEW TAB
+// ══════════════════════════════════════════════════════
+function renderTelePreview() {
+  const el = document.getElementById("tele-preview");
+  if (!el) return;
+  if (!script) {
+    el.innerHTML = `<div style="padding:24px;text-align:center;color:var(--muted);font-size:12px">Sin guion activo</div>`;
+    return;
+  }
+  el.innerHTML = (script.blocks || []).map((block, bi) => {
+    const lines = (block.lines || []).map((line, li) => {
+      const isActive = bi === _teleActiveBlock && li === _teleActiveLine;
+      const isNote   = line.type === "note";
+      const p = (script.participants || []).find(p => p.id === line.participantId);
+      const c = COLORS[p?.colorIdx ?? 0] || COLORS[0];
+      const borderColor = isNote ? "var(--orange)" : c.bg;
+      return `<div class="tele-line${isActive?" tele-active":""}${isNote?" tele-note":""}"
+               style="border-left-color:${borderColor}"
+               onclick="teleJump(${bi},${li})">${esc(line.text || "—")}</div>`;
+    }).join("");
+    return `<div class="tele-blk-title">${esc(block.title || `Bloque ${bi+1}`)}</div>${lines}`;
+  }).join("");
+  const activeEl = el.querySelector(".tele-active");
+  if (activeEl) activeEl.scrollIntoView({ block:"nearest" });
+}
+
+function teleJump(bi, li) {
+  if (playing) { toast("Pausa el teleprónter para saltar a una línea"); return; }
+  _teleActiveBlock = bi;
+  _teleActiveLine  = li;
+  send({ type:"jump_line", blockIndex:bi, lineIndex:li });
+  renderTelePreview();
+}
 
 // ══════════════════════════════════════════════════════
 // VOICE RECOGNITION
@@ -2802,7 +3066,8 @@ function renderClients(list) {
 }
 
 // ── Drag & drop clients ─────────────────────────────────────────────────────
-let _dragCid = null;
+let _dragCid   = null;
+let _dragAfter = false;
 
 function initClientDrag(container) {
   container.querySelectorAll(".client-pill.has-menu").forEach(p => {
@@ -2826,8 +3091,9 @@ function onCDragOver(e) {
   const t = e.currentTarget;
   if(t.dataset.clientId === _dragCid) return;
   const rect = t.getBoundingClientRect();
-  t.classList.toggle("drag-after", e.clientX > rect.left + rect.width / 2);
-  t.classList.toggle("drag-before", e.clientX <= rect.left + rect.width / 2);
+  _dragAfter = e.clientX > rect.left + rect.width / 2;
+  t.classList.toggle("drag-after",  _dragAfter);
+  t.classList.toggle("drag-before", !_dragAfter);
 }
 
 function onCDragLeave(e) {
@@ -2841,9 +3107,8 @@ function onCDrop(e) {
   if(!_dragCid || t.dataset.clientId === _dragCid) return;
   const src = t.parentElement.querySelector(`[data-client-id="${_dragCid}"]`);
   if(!src) return;
-  const after = t.classList.contains("drag-after");
-  if(after) t.after(src);
-  else      t.before(src);
+  if(_dragAfter) t.after(src);
+  else           t.before(src);
   saveClientOrder(t.parentElement);
   _dragCid = null;
 }

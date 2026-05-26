@@ -73,7 +73,7 @@ const CONFIG_FILE  = path.join(DATA_DIR, "config.json");
 const DEFAULT_CONFIG = {
   speakerSize: 22, noteSize: 42, contentWidth: 80,
   hideCursor: false, showServerIP: false, stopAtBlockEnd: false,
-  lineSpacing: 0.8, showSpeakerNames: true,
+  lineSpacing: 0.8, showSpeakerNames: true, fadeSize: 2,
   showKeyDebug: true,
   keyBindings: [
     { action:"toggle_play",   keys:[{k:"b",s:false}] },
@@ -277,6 +277,38 @@ const requestHandler = (req, res) => {
     } else {
       res.writeHead(405); res.end("Method not allowed");
     }
+    return;
+  }
+
+  // POST /api/import-pdf  — extrae texto de un PDF (requiere: pnpm add pdf-parse)
+  if (urlPath === "/api/import-pdf" && req.method === "POST") {
+    let pdfParse;
+    try { pdfParse = require("pdf-parse"); } catch {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: "pdf-parse no instalado. Ejecuta: pnpm add pdf-parse" }));
+    }
+    const chunks = [];
+    req.on("data", c => chunks.push(c));
+    req.on("end", async () => {
+      try {
+        const buf = Buffer.concat(chunks);
+        // Extraer el buffer del fichero del multipart (buscar boundary)
+        const boundary = (req.headers["content-type"] || "").match(/boundary=([^\s;]+)/)?.[1];
+        let pdfBuf = buf;
+        if (boundary) {
+          const sep = Buffer.from("\r\n--" + boundary);
+          const start = buf.indexOf(Buffer.from("\r\n\r\n"));
+          const end = buf.indexOf(sep, start + 4);
+          if (start !== -1 && end !== -1) pdfBuf = buf.slice(start + 4, end);
+        }
+        const data = await pdfParse(pdfBuf);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ text: data.text }));
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
     return;
   }
 
